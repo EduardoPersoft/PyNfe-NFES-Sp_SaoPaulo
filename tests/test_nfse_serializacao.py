@@ -37,6 +37,7 @@ class SerializacaoNFSeTest:
             # Dados opcionais
             codigo_cnae=6201501,
             codigo_tributacao_municipio="1234",
+            nbs = '1.1501.30.00',
             valor_deducoes=Decimal("10.00"),
             valor_pis=Decimal("10.00"),
             valor_confins=Decimal("10.00"),
@@ -45,6 +46,7 @@ class SerializacaoNFSeTest:
             valor_csll=Decimal("10.00"),
             valor_iss=Decimal("10.00"),
             valor_iss_retido=Decimal("10.00"),
+            valor_ipi=Decimal("0.00"),
             valor_liquido=Decimal("10.00"),
             outras_retencoes=Decimal("10.00"),
             base_calculo=Decimal("10.00"),
@@ -58,6 +60,7 @@ class SerializacaoNFSeTest:
             data_emissao=datetime.datetime.strptime(
                 SerializacaoNFSeTest.data_hora, "%Y-%m-%dT%H:%M:%S"
             ),
+            assinatura="12312312323123123",
             servico=servico,
             emitente=SerializacaoNFSeTest._get_emitente(),
             cliente=SerializacaoNFSeTest._get_destinatario(),
@@ -72,6 +75,14 @@ class SerializacaoNFSeTest:
             incentivo=2,  # Incentivador Cultural # 1-Sim; 2-Não
             serie="A1",
             tipo="1",
+            pgtoParcAntec = 1,
+
+            IBSCBS_finNFSe = 0,
+            IBSCBS_indFinal = 0,
+            IBSCBS_cIndOp = "100301",
+            IBSCBS_tpOper = 5,
+            IBSCBS_indDest = 1,
+            IBSCBS_cClassTrib = "200028"
         )
 
     @staticmethod
