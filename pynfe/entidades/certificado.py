@@ -43,6 +43,29 @@ class CertificadoA1(Certificado):
         senao retorna o objeto. Apos o uso devem ser excluidos com o metodo excluir.
         """
 
+        chave, cert = self.pegarPkCert(senha)
+
+
+        if caminho:
+            # cria arquivos temporarios
+            with tempfile.NamedTemporaryFile(delete=False) as arqcert:
+                arqcert.write(cert.public_bytes(Encoding.PEM))
+            with tempfile.NamedTemporaryFile(delete=False) as arqchave:
+                arqchave.write(
+                    chave.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+                )
+            self.arquivos_temp.append(arqchave.name)
+            self.arquivos_temp.append(arqcert.name)
+            return arqchave.name, arqcert.name
+        else:
+            # Certificado
+            cert = cert.public_bytes(Encoding.PEM).decode("utf-8")
+            # Chave, string decodificada da chave privada
+            chave = chave.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+
+            return chave, cert
+
+    def pegarPkCert(self, senha):
         try:
             with open(self.caminho_arquivo, "rb") as cert_arquivo:
                 cert_conteudo = cert_arquivo.read()
@@ -78,24 +101,8 @@ class CertificadoA1(Certificado):
                     "Falha ao carregar certificado digital A1. Causa desconhecida."
                 ) from e
 
-        if caminho:
-            # cria arquivos temporarios
-            with tempfile.NamedTemporaryFile(delete=False) as arqcert:
-                arqcert.write(cert.public_bytes(Encoding.PEM))
-            with tempfile.NamedTemporaryFile(delete=False) as arqchave:
-                arqchave.write(
-                    chave.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
-                )
-            self.arquivos_temp.append(arqchave.name)
-            self.arquivos_temp.append(arqcert.name)
-            return arqchave.name, arqcert.name
-        else:
-            # Certificado
-            cert = cert.public_bytes(Encoding.PEM).decode("utf-8")
-            # Chave, string decodificada da chave privada
-            chave = chave.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+        return chave, cert
 
-            return chave, cert
 
     def excluir(self):
         """Exclui os arquivos temporarios utilizados para o request."""

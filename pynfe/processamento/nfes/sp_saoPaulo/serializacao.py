@@ -1,7 +1,7 @@
 from lxml import etree
 import decimal
+from pynfe.processamento.nfes.sp_saoPaulo import tipos
 
-from pynfe.utils.flags import NAMESPACE_NFE
 
 NAMESPACE_NFES = "http://www.prefeitura.sp.gov.br/nfe"
 XSD = "http://www.w3.org/2001/XMLSchema"
@@ -106,12 +106,13 @@ class RPS(Elemento):
 
     def __init__(self, nfse):
         super().__init__(nfse)
+        self._tipos = tipos.Tipos(nfse)
         self._add("Assinatura", self._nfse.assinatura)
         self._element.append(self._chaveRPS)
-        self._add("TipoRPS", self._tipoRPS)
+        self._add("TipoRPS", self._tipos.tipoRPS)
         self._add("DataEmissao", self._nfse.data_emissao.strftime("%Y-%m-%d"))
         self._add("StatusRPS", 'N')
-        self._add("TributacaoRPS", self._tributacaoRPS)
+        self._add("TributacaoRPS", self._tipos.tributacaoRPS)
         self._add("ValorDeducoes", self._nfse.servico.valor_deducoes)
         self._add("ValorPIS", nfse.servico.valor_pis)
         self._add("ValorCOFINS", self._nfse.servico.valor_confins)
@@ -120,7 +121,7 @@ class RPS(Elemento):
         self._add("ValorCSLL", self._nfse.servico.valor_csll)
         self._add("CodigoServico", self._nfse.servico.item_lista)
         self._add("AliquotaServicos", self._nfse.servico.aliquota)
-        self._add("ISSRetido", self._issRetido)
+        self._add("ISSRetido", self._tipos.issRetido)
         self._element.append(self._cnpjCpfTomador)
         self._add("RazaoSocialTomador", self._nfse.cliente.razao_social)
         self._element.append(self._enderecoTomador)
@@ -132,50 +133,6 @@ class RPS(Elemento):
         self._add("NBS", self._nfse.servico.nbs.replace('.',''))
         self._add("cLocPrestacao", self._nfse.cliente.endereco_cod_municipio)
         self._element.append(self._ibscbs)
-
-    @property
-    def _tipoRPS(self):
-        if self._nfse.tipo=='3':
-            return "RPS-C"
-        if self._nfse.tipo=='2':
-            return "RPS-M"
-        if self._nfse.tipo=='1':
-            return "RPS"
-        return ""
-
-    @property
-    def _tributacaoRPS(self):
-        if self._nfse.natureza_operacao == 1:
-            return 'T'
-        if self._nfse.natureza_operacao == 2:
-            return 'F'
-        if self._nfse.natureza_operacao == 3:
-            return 'A'
-        if self._nfse.natureza_operacao == 4:
-            return 'M'
-        if self._nfse.natureza_operacao == 5:
-            return 'X'
-        if self._nfse.natureza_operacao == 7:
-            return 'B'
-        if self._nfse.natureza_operacao == 8:
-            return 'D'
-        if self._nfse.natureza_operacao == 9:
-            return 'N'
-        if self._nfse.natureza_operacao == 10:
-            return 'R'
-        if self._nfse.natureza_operacao == 11:
-            return 'S'
-        if self._nfse.natureza_operacao == 12:
-            return 'V'
-        if self._nfse.natureza_operacao == 13:
-            return 'V'
-        return ""
-
-    @property
-    def _issRetido(self):
-        if self._nfse.servico.valor_iss_retido>0:
-            return 'true'
-        return 'false'
 
     @property
     def _cnpjCpfTomador(self):
