@@ -52,3 +52,28 @@ class AssinaturaA1(Assinatura):
             return etree.tostring(signed_root, encoding="unicode", pretty_print=False)
         else:
             return signed_root
+
+    def assinarNfse(self, xml: etree._Element, retorna_string=False) -> Union[str, etree._Element]:
+        # busca tag que tem id(reference_uri), logo nao importa se tem namespace
+
+        # retira acentos
+        xml_str = remover_acentos(etree.tostring(xml, encoding="unicode", pretty_print=False))
+        xml = etree.fromstring(xml_str)
+
+        signer = CustomXMLSigner(
+            method=signxml.methods.enveloped,
+            signature_algorithm="rsa-sha1",
+            digest_algorithm="sha1",
+            c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+        )
+        signer.excise_empty_xmlns_declarations = True
+
+        ns = {None: signer.namespaces["ds"]}
+        signer.namespaces = ns
+
+        ref_uri =  None
+        signed_root = signer.sign(xml, key=self.key, cert=self.cert, reference_uri=ref_uri)
+        if retorna_string:
+            return etree.tostring(signed_root, encoding="unicode", pretty_print=False)
+        else:
+            return signed_root

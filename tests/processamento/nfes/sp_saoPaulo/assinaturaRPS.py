@@ -22,14 +22,13 @@ class AssinaturaRPS(unittest.TestCase):
         self.assertEqual(ass.assinatura(nfse), 
                          "TwQogT4P4i1dNSIPsSWLI6SaiGlo/iN6LVhBaifNaJOMZvaY5Qg7JtJgjUCWGzLAZjbm1a+Ut66K7RU2bZSY4Q4JoiI83tIMzrlRzBOnH3E3LKtgUvD1lV+RVwnCRqGwd+izaHqH91n92tQVM1qgY8sosRny4g9SLbo5Bv56UAg=")
 
-    def test_assinar(self):
+    def test_assinarRPS(self):
         nfse = SerializacaoNFSeTest.get_notafiscal_servico()
         ass = assinaturaRPS.Assinatura(caminho_arquivo=self.certificado,
                                        senha=self.senha)
         ass.assinar(nfse)
         self.assertEqual(nfse.assinatura, 
                          "TwQogT4P4i1dNSIPsSWLI6SaiGlo/iN6LVhBaifNaJOMZvaY5Qg7JtJgjUCWGzLAZjbm1a+Ut66K7RU2bZSY4Q4JoiI83tIMzrlRzBOnH3E3LKtgUvD1lV+RVwnCRqGwd+izaHqH91n92tQVM1qgY8sosRny4g9SLbo5Bv56UAg=")
-
 
     def _stringAssinatura(self):
         insc = '00000000'
