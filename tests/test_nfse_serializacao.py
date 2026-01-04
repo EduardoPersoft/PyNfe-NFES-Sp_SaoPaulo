@@ -144,7 +144,7 @@ class SerializacaoNFSeTest:
             endereco_numero="0",
             endereco_complemento="Ao lado de lugar nenhum",  # opcional
             endereco_bairro="Centro",
-            endereco_cod_municipio="123",
+            endereco_cod_municipio="1234567",
             endereco_uf="MG",
             endereco_cep="33257010",
             endereco_pais=CODIGO_BRASIL,
