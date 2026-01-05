@@ -16,22 +16,7 @@ class SerializacaoNFSesp_saoPaulo(unittest.TestCase):
                 self._get_lote_esperado(),
                 etree.tostring(x, encoding="unicode", pretty_print=False))
 
-    """
 
-    def test_assinatruaRPS(self):
-        nfse = SerializacaoNFSeTest.get_notafiscal_servico()
-        r = serializacao.RPS(nfse)
-        self.assertEqual(
-                self._getCadeiaAssinatura(),
-                x)
-
-    def _cadeiaAssinatura():
-        insc = '000000000000'
-        serie = 'A1   '
-        numero = '000000000050' 
-        return f"{insc}{serie}{numero}" 
-
-    """
     def _get_lote_esperado(self) -> str:
         return SerializacaoNFSeTest.strip_xml(f"""
             <PedidoEnvioLoteRPS xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.prefeitura.sp.gov.br/nfe">
@@ -73,7 +58,7 @@ class SerializacaoNFSesp_saoPaulo(unittest.TestCase):
                         <NumeroEndereco>0</NumeroEndereco>
                         <ComplementoEndereco>Ao lado de lugar nenhum</ComplementoEndereco>
                         <Bairro>Centro</Bairro>
-                        <Cidade>123</Cidade>
+                        <Cidade>1234567</Cidade>
                         <UF>MG</UF>
                         <CEP>33257010</CEP>
                     </EnderecoTomador>
@@ -83,7 +68,7 @@ class SerializacaoNFSesp_saoPaulo(unittest.TestCase):
                     <ExigibilidadeSuspensa>1</ExigibilidadeSuspensa>
                     <PagamentoParceladoAntecipado>1</PagamentoParceladoAntecipado>
                     <NBS>115013000</NBS>
-                    <cLocPrestacao>123</cLocPrestacao>
+                    <cLocPrestacao>1234567</cLocPrestacao>
                     <IBSCBS>
                         <finNFSe>0</finNFSe>
                         <indFinal>0</indFinal>

@@ -2,7 +2,6 @@ from lxml import etree
 import decimal
 from pynfe.processamento.nfes.sp_saoPaulo import tipos
 
-
 NAMESPACE_NFES = "http://www.prefeitura.sp.gov.br/nfe"
 XSD = "http://www.w3.org/2001/XMLSchema"
 XSI = "http://www.w3.org/2001/XMLSchema-instance"
