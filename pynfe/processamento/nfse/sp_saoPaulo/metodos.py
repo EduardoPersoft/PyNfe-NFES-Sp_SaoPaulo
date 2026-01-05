@@ -1,5 +1,5 @@
 from lxml import etree
-from pynfe.processamento.nfes.sp_saoPaulo.flags import (
+from pynfe.processamento.nfse.sp_saoPaulo.flags import (
         NAMESPACE_NFES,
         VERSAO_SCHEMA
         )

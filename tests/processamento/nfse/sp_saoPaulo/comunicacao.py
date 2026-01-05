@@ -1,8 +1,8 @@
 import unittest
 from lxml import etree
-from pynfe.processamento.nfes import envelope
-from pynfe.processamento.nfes.sp_saoPaulo import serializacao
-from pynfe.processamento.nfes.sp_saoPaulo import metodos
+from pynfe.processamento.nfse import envelope
+from pynfe.processamento.nfse.sp_saoPaulo import serializacao
+from pynfe.processamento.nfse.sp_saoPaulo import metodos
 from tests.test_nfse_serializacao import SerializacaoNFSeTest
 
 

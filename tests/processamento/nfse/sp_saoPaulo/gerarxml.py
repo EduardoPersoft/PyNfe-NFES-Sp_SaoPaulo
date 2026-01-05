@@ -1,7 +1,7 @@
 
 from pynfe.processamento.assinatura import AssinaturaA1
-from pynfe.processamento.nfes.sp_saoPaulo import assinaturaRPS
-from pynfe.processamento.nfes.sp_saoPaulo import serializacao 
+from pynfe.processamento.nfse.sp_saoPaulo import assinaturaRPS
+from pynfe.processamento.nfse.sp_saoPaulo import serializacao 
 from tests.test_nfse_serializacao import SerializacaoNFSeTest
 
 certificado = "./tests/certificado.pfx"

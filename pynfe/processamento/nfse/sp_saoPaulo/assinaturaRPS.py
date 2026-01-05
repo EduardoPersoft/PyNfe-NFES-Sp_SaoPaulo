@@ -2,7 +2,7 @@ import base64
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from pynfe.entidades import certificado
-from pynfe.processamento.nfes.sp_saoPaulo import tipos
+from pynfe.processamento.nfse.sp_saoPaulo import tipos
 
 class Assinatura(object):
 

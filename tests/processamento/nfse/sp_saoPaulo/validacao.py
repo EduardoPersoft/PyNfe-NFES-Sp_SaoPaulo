@@ -1,8 +1,8 @@
 import unittest
 from lxml import etree
 from pynfe.processamento.assinatura import AssinaturaA1
-from pynfe.processamento.nfes.sp_saoPaulo import assinaturaRPS
-from pynfe.processamento.nfes.sp_saoPaulo import serializacao 
+from pynfe.processamento.nfse.sp_saoPaulo import assinaturaRPS
+from pynfe.processamento.nfse.sp_saoPaulo import serializacao 
 from tests.test_nfse_serializacao import SerializacaoNFSeTest
 
 class AssinaturaRPS(unittest.TestCase):

@@ -1,5 +1,5 @@
 import unittest
-from pynfe.processamento.nfes.sp_saoPaulo import assinaturaRPS
+from pynfe.processamento.nfse.sp_saoPaulo import assinaturaRPS
 from tests.test_nfse_serializacao import SerializacaoNFSeTest
 
 class AssinaturaRPS(unittest.TestCase):
