@@ -12,6 +12,7 @@ class Comunicacao(object):
     def enviar_lote(self, xml):
         self._acao = 'enviar_lote'
         self._xml = xml
+        return self._post()
 
     def _post_header(self):
         response = {
@@ -22,8 +23,8 @@ class Comunicacao(object):
     
     def _post(self, timeout=None):
         certificado_a1 = CertificadoA1(self._certificado)
-        chave, cert = certificado_a1.separar_arquivo(self._certificado_senha,
-                                                     caminho=True)
+        chave, cert = certificado_a1.separar_arquivo(
+                        self._certificado_senha, caminho=True)
         chave_cert = (cert, chave)
         try:
             result = requests.post(

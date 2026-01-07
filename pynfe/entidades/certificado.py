@@ -79,7 +79,7 @@ class CertificadoA1(Certificado):
             ) from exc
         except Exception as exc:
             raise Exception(
-                "Falha ao abrir arquivo do certificado digital A1. Causa desconhecida."
+                f"Falha ao abrir arquivo do certificado digital A1. {str(exc)}."
             ) from exc
 
         if not isinstance(senha, bytes):
@@ -98,7 +98,7 @@ class CertificadoA1(Certificado):
                 ) from e
             else:
                 raise Exception(
-                    "Falha ao carregar certificado digital A1. Causa desconhecida."
+                    f"Falha ao carregar certificado digital A1. {str(e)}."
                 ) from e
 
         return chave, cert

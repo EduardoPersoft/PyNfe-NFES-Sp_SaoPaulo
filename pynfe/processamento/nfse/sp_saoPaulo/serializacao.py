@@ -19,7 +19,7 @@ class Serializacao(object):
         r.append(Cabecalho(self._nfse).element)
         for n in self._nfse:
             r.append(RPS(n).element)
-        print(etree.tostring(r, encoding="unicode", pretty_print=False))
+        #print(etree.tostring(r, encoding="unicode", pretty_print=False))
         return r
 
 class Elemento(object):

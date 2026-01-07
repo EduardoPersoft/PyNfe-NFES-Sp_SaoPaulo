@@ -3,6 +3,7 @@ from lxml import etree
 from pynfe.processamento.nfse import envelope
 from pynfe.processamento.nfse.sp_saoPaulo import serializacao
 from pynfe.processamento.nfse.sp_saoPaulo import metodos
+from pynfe.processamento.nfse.sp_saoPaulo import comunicacao
 from tests.test_nfse_serializacao import SerializacaoNFSeTest
 
 
@@ -37,6 +38,23 @@ class Metodos(unittest.TestCase):
         self.assertEqual(
                 self._get_envelopeEnviarLote(),
                 etree.tostring(e.envelopar(m.enviarLote(x)), encoding="unicode", pretty_print=False))
+
+    def test_comunicacao(self):
+        certificado="./tests/certificado.pfx"
+        certificado_senha=bytes("123456", "utf-8")
+        nfse = SerializacaoNFSeTest.get_notafiscal_servico()
+        s = serializacao.Serializacao()
+        x = s.gerar(nfse)
+        m = metodos.Metodos()
+        e = envelope.Envelope()
+        c = comunicacao.Comunicacao(certificado, certificado_senha)
+        erro = ''
+        try:
+            r = c.enviar_lote(e.envelopar(m.enviarLote(x)))
+        except Exception as e:
+            erro = str(e)
+        self.assertEqual(erro, "HTTPSConnectionPool(host='nfews.prefeitura.sp.gov.br', port=443): Max retries exceeded with url: / (Caused by SSLError(SSLError(399, '[SSL: EE_KEY_TOO_SMALL] ee key too small (_ssl.c:3900)')))")
+        
 
     def _get_envelopeEnviarLote(self) -> str:
         return SerializacaoNFSeTest.strip_xml(
