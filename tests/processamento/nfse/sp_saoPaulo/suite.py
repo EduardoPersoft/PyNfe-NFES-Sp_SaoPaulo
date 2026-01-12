@@ -4,6 +4,8 @@ from tests.processamento.nfse.sp_saoPaulo import assinaturaRPS
 from tests.processamento.nfse.sp_saoPaulo import comunicacao
 from tests.processamento.nfse.sp_saoPaulo import serializacao
 from tests.processamento.nfse.sp_saoPaulo import validacao
+from tests.processamento.nfse.sp_saoPaulo import autorizador
+from tests.processamento.nfse.sp_saoPaulo import servicos
 
 def suite():
     loader = unittest.TestLoader()
@@ -12,6 +14,8 @@ def suite():
     suite.addTests(loader.loadTestsFromModule(comunicacao))
     suite.addTests(loader.loadTestsFromModule(serializacao))
     suite.addTests(loader.loadTestsFromModule(validacao))
+    suite.addTests(loader.loadTestsFromModule(autorizador))
+    suite.addTests(loader.loadTestsFromModule(servicos))
     return suite
 
 if __name__ == '__main__':
