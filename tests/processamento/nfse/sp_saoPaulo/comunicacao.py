@@ -141,7 +141,7 @@ class Metodos(unittest.TestCase):
                     <ValorINSS>10.00</ValorINSS>
                     <ValorIR>10.00</ValorIR>
                     <ValorCSLL>10.00</ValorCSLL>
-                    <CodigoServico>0101</CodigoServico>
+                    <CodigoServico>1234</CodigoServico>
                     <AliquotaServicos>10.00</AliquotaServicos>
                     <ISSRetido>true</ISSRetido>
                     <CPFCNPJTomador>
@@ -211,7 +211,7 @@ class Metodos(unittest.TestCase):
                     <ValorINSS>10.00</ValorINSS>
                     <ValorIR>10.00</ValorIR>
                     <ValorCSLL>10.00</ValorCSLL>
-                    <CodigoServico>0101</CodigoServico>
+                    <CodigoServico>1234</CodigoServico>
                     <AliquotaServicos>10.00</AliquotaServicos>
                     <ISSRetido>true</ISSRetido>
                     <CPFCNPJTomador>

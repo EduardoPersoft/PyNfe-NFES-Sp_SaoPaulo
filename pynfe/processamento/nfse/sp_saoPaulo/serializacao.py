@@ -118,7 +118,7 @@ class RPS(Elemento):
         self._add("ValorINSS", self._nfse.servico.valor_inss)
         self._add("ValorIR", self._nfse.servico.valor_ir)
         self._add("ValorCSLL", self._nfse.servico.valor_csll)
-        self._add("CodigoServico", self._nfse.servico.item_lista)
+        self._add("CodigoServico", self._nfse.servico.codigo_tributacao_municipio)
         self._add("AliquotaServicos", self._nfse.servico.aliquota)
         self._add("ISSRetido", self._tipos.issRetido)
         self._element.append(self._cnpjCpfTomador)
@@ -179,7 +179,8 @@ class RPS(Elemento):
         self._add("finNFSe", self._nfse.IBSCBS_finNFSe, raiz=r)
         self._add("indFinal", self._nfse.IBSCBS_indFinal, raiz=r)
         self._add("cIndOp", self._nfse.IBSCBS_cIndOp, raiz=r)
-        self._add("tpOper", self._nfse.IBSCBS_tpOper, raiz=r)
+        if self._nfse.IBSCBS_tpOper:
+            self._add("tpOper", self._nfse.IBSCBS_tpOper, raiz=r)
         self._add("indDest", self._nfse.IBSCBS_indDest, raiz=r)
         r.append(self._valores)
         return r

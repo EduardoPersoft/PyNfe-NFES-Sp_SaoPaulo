@@ -43,6 +43,14 @@ class Tipos(object):
         return ""
 
     @property
+    def exigibiliadeSuspensa(self):
+        if self._nfse.natureza_operacao == 5:
+            return 1 
+        if self._nfse.natureza_operacao == 13:
+            return 1 
+        return 0
+        
+    @property
     def issRetidoSN(self):
         if self._nfse.servico.valor_iss_retido>0:
             return 'S'
