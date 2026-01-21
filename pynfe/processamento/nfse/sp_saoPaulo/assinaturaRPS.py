@@ -15,18 +15,21 @@ class Assinatura(object):
 
     def string(self, nfse):
         self._tipos = tipos.Tipos(nfse)
-        insc = nfse.emitente.inscricao_municipal.zfill(8)
+        insc = nfse.emitente.inscricao_municipal.zfill(12)
         serie = nfse.serie.ljust(5)
         rps = nfse.identificador.zfill(12)
         emissao = nfse.data_emissao.strftime('%Y%m%d')
         tributacao = self._tipos.tributacaoRPS 
         status = 'N'
         issRetido = self._tipos.issRetidoSN
-        valor = str(nfse.servico.valor_liquido).replace('.', '').zfill(15)
-        deducoes = str(nfse.servico.valor_deducoes).replace('.', '').zfill(15)
-        servico = nfse.servico.item_lista.zfill(5)
+        valor = ('%.2f' % nfse.servico.valor_liquido).replace('.', '').zfill(15)
+        deducoes = ('%.2f' % nfse.servico.valor_deducoes).replace('.', '').zfill(15)
+        servico = nfse.servico.codigo_tributacao_municipio.zfill(5)
         tipoDoc = self._tipos.documentoTomador
         doc = nfse.cliente.numero_documento.zfill(14)
+        print("assinatura RPS*******")
+        print(f"{insc}{serie}{rps}{emissao}{tributacao}{status}{issRetido}{valor}{deducoes}{servico}{tipoDoc}{doc}")
+        print("*********************")
         return  f"{insc}{serie}{rps}{emissao}{tributacao}{status}{issRetido}{valor}{deducoes}{servico}{tipoDoc}{doc}"
 
     def assinatura(self, nfse):

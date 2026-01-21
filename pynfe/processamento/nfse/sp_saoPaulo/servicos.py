@@ -22,19 +22,23 @@ class Servicos(object):
         self._validacao = None
 
     def enviarLote(self, nfse, homologacao=False):
+        self._homologacao = homologacao
         self.assinarRPS(nfse)
         s = self.serializar(nfse)
         a = self.assinatura.assinarNfse(s)
         self.validacao.validarLote(a)
         e = self.enveloparEnviarLote(a, homologacao=homologacao) 
-        return self._getResultado(self.comunicacao.enviar_lote(e).text)
+        return self._getResultado(self.comunicacao.enviar_lote(
+            e).text, homologacao)
 
-    def _getResultado(self, retorno):
+    def _getResultado(self, retorno, homologacao):
+        evento = "EnvioLoteRPSResponse"
+        if homologacao:
+            evento = "TesteEnvioLoteRPSResponse"
         corpo = xmltodict.parse(retorno)['soap:Envelope']['soap:Body']
-        retorno = xmltodict.parse(corpo["TesteEnvioLoteRPSResponse"]["RetornoXML"])
+        print(corpo)
+        retorno = xmltodict.parse(corpo[evento]["RetornoXML"])
         return retorno
-
-
 
 
     def assinarRPS(self, nfse):
@@ -93,7 +97,8 @@ class Servicos(object):
         if self._comunicacao:
             return self._comunicacao
         self._comunicacao = comunicacao.Comunicacao(self._certificado,
-                                                    self._senha)
+                                                    self._senha,
+                                                    homologacao=self._homologacao)
         return self._comunicacao
 
     @property

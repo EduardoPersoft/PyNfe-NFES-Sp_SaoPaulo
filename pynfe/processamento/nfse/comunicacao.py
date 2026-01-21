@@ -18,8 +18,9 @@ class Comunicacao(object):
         response = {
             "Content-Type": "text/xml; charset=utf-8;",
             "Content-Length": str(len(self.xml)),
-            "SOAPAction": "http://www.prefeitura.sp.gov.br/nfe/ws/testeenvio"
-        }
+            "SOAPAction": "http://www.prefeitura.sp.gov.br/nfe/ws/envioLoteRPS"}
+        if self._homologacao:
+            response['SOAPAction'] = "http://www.prefeitura.sp.gov.br/nfe/ws/testeenvio"
         return response
     
     def _post(self, timeout=None):
