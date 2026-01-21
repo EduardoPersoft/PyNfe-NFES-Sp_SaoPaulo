@@ -13,7 +13,6 @@ assRPS = assinaturaRPS.Assinatura(
 assRPS.assinar(nfse)
 s = serializacao.Serializacao()
 x = s.gerar(nfse)
-ass = AssinaturaA1(certificado,
-                              senha)
+ass = AssinaturaA1(certificado, senha)
 print(ass.assinarNfse(xml=x,retorna_string=True))
 

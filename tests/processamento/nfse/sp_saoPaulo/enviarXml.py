@@ -19,6 +19,7 @@ x = s.gerar(nfse)
 m = metodos.Metodos()
 e = envelope.Envelope()
 c = comunicacao.Comunicacao(certificado, senha)
+print(e.envelopar(m.enviarLote(x)))
 r = c.enviar_lote(e.envelopar(m.enviarLote(x)))
 print(r)
 

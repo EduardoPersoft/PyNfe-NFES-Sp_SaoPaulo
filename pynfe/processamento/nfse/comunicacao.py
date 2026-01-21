@@ -16,8 +16,9 @@ class Comunicacao(object):
 
     def _post_header(self):
         response = {
-            "content-type": "application/soap+xml; charset=utf-8;",
-            "Accept": "application/soap+xml; charset=utf-8;",
+            "Content-Type": "text/xml; charset=utf-8;",
+            "Content-Length": str(len(self.xml)),
+            "SOAPAction": "http://www.prefeitura.sp.gov.br/nfe/ws/testeenvio"
         }
         return response
     
@@ -32,9 +33,10 @@ class Comunicacao(object):
                 self.xml,
                 headers=self._post_header(),
                 cert=chave_cert,
-                verify=False,
+                verify=True,
                 timeout=timeout,
             )
+            print(self.xml)
             result.encoding = "utf-8"
             return result
         except requests.exceptions.RequestException as e:

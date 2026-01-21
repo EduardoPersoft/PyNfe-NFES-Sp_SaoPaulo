@@ -10,10 +10,11 @@ VERSAO = "2"
 class Serializacao(object):
 
     def gerar(self, nfse):
+        solicitacao = "PedidoEnvioLoteRPS"
         self._nfse = nfse
         if not isinstance(nfse, list):
             self._nfse = [nfse]
-        r = etree.Element("PedidoEnvioLoteRPS", 
+        r = etree.Element(solicitacao, 
                           nsmap={"xsd": XSD, "xsi": XSI},
                           xmlns=NAMESPACE_NFES)
         r.append(Cabecalho(self._nfse).element)
@@ -41,7 +42,7 @@ class Elemento(object):
         if isinstance(value, int):
             value = str(value)
         if isinstance(value, decimal.Decimal):
-            value = str(value)
+            value ='%.2f' % value
         etree.SubElement(raiz, element).text = value
 
 class Cabecalho(Elemento):

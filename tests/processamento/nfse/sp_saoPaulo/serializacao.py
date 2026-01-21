@@ -46,7 +46,7 @@ class SerializacaoNFSesp_saoPaulo(unittest.TestCase):
                     <ValorINSS>10.00</ValorINSS>
                     <ValorIR>10.00</ValorIR>
                     <ValorCSLL>10.00</ValorCSLL>
-                    <CodigoServico>1234</CodigoServico>
+                    <CodigoServico>0101</CodigoServico>
                     <AliquotaServicos>10.00</AliquotaServicos>
                     <ISSRetido>true</ISSRetido>
                     <CPFCNPJTomador>

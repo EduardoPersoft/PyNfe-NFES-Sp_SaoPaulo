@@ -1,4 +1,5 @@
 from lxml import etree
+import xmltodict
 from pynfe.processamento import assinatura
 from pynfe.processamento.nfse.sp_saoPaulo import assinaturaRPS
 from pynfe.processamento.nfse.sp_saoPaulo import serializacao 
@@ -20,13 +21,21 @@ class Servicos(object):
         self._comunicacao = None
         self._validacao = None
 
-    def enviarLote(self, nfse):
+    def enviarLote(self, nfse, homologacao=False):
         self.assinarRPS(nfse)
         s = self.serializar(nfse)
         a = self.assinatura.assinarNfse(s)
         self.validacao.validarLote(a)
-        e = self.enveloparEnviarLote(a) 
-        return self.comunicacao.enviar_lote(e)
+        e = self.enveloparEnviarLote(a, homologacao=homologacao) 
+        return self._getResultado(self.comunicacao.enviar_lote(e).text)
+
+    def _getResultado(self, retorno):
+        corpo = xmltodict.parse(retorno)['soap:Envelope']['soap:Body']
+        retorno = xmltodict.parse(corpo["TesteEnvioLoteRPSResponse"]["RetornoXML"])
+        return retorno
+
+
+
 
     def assinarRPS(self, nfse):
         if isinstance(nfse, list):
@@ -38,9 +47,10 @@ class Servicos(object):
     def serializar(self, nfse):
         return self.serializacao.gerar(nfse)
 
-    def enveloparEnviarLote(self, nfseSerializada):
+    def enveloparEnviarLote(self, nfseSerializada, homologacao=False):
         return self.envelope.envelopar(
-                self.metodos.enviarLote(nfseSerializada))
+                self.metodos.enviarLote(nfseSerializada,
+                                        homologacao=homologacao))
 
     @property
     def assinaturaRPS(self):

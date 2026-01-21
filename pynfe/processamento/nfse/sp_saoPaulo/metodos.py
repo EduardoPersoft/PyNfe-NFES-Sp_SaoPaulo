@@ -11,7 +11,7 @@ class Metodos(object):
         if homologacao:
             metodo = 'TesteEnvioLoteRPSRequest'
         m = etree.Element("MensagemXML")
-        m.append(dados)
+        m.text = etree.CDATA(etree.tostring(dados, encoding="unicode"))
         r = etree.Element(metodo, 
                           xmlns=NAMESPACE_NFES)
         etree.SubElement(r, "VersaoSchema").text = VERSAO_SCHEMA
