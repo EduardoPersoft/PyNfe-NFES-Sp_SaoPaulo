@@ -41,10 +41,10 @@ class Servicos(object):
             simples = nfse[0].simples
         else:
             simples = nfse.simples
-        if simples=='1':
-            self.setSchema(1)
+        if simples==1:
+            self.setSchema('1')
         else:
-            self.setSchema(2)
+            self.setSchema('2')
 
 
 
