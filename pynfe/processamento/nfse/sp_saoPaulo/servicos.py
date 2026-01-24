@@ -22,6 +22,7 @@ class Servicos(object):
         self._validacao = None
 
     def enviarLote(self, nfse, homologacao=False):
+        self._setSchemaSimples(nfse)
         self._homologacao = homologacao
         self.assinarRPS(nfse)
         s = self.serializar(nfse)
@@ -34,6 +35,17 @@ class Servicos(object):
     def setSchema(self, value):
         self.validacao.setSchema(value)
         self.metodos.setSchema(value)
+
+    def _setSchemaSimples(self, nfse):
+        if isinstance(nfse, list):
+            simples = nfse[0].simples
+        else:
+            simples = nfse.simples
+        if simples=='1':
+            self.setSchema(1)
+        else:
+            self.setSchema(2)
+
 
 
     def _getResultado(self, retorno, homologacao):

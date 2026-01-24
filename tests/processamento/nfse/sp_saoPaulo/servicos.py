@@ -8,6 +8,7 @@ class Servico(unittest.TestCase):
         certificado="./tests/certificado.pfx"
         certificadoSenha=bytes("123456", "utf-8")
         nfse = SerializacaoNFSeTest.get_notafiscal_servico()
+        nfse.simples = 2
         s = servicos.Servicos(certificado, certificadoSenha)
         erro = ""
         try:
@@ -21,7 +22,6 @@ class Servico(unittest.TestCase):
         certificadoSenha=bytes("123456", "utf-8")
         nfse = SerializacaoNFSeTest.get_notafiscal_servico()
         s = servicos.Servicos(certificado, certificadoSenha)
-        s.setSchema('1')
         erro = ""
         try:
             s.enviarLote(nfse)
