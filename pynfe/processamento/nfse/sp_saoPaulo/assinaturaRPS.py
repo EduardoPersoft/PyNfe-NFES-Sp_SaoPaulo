@@ -16,6 +16,8 @@ class Assinatura(object):
     def string(self, nfse):
         self._tipos = tipos.Tipos(nfse)
         insc = nfse.emitente.inscricao_municipal.zfill(12)
+        if nfse.simples==1:
+            insc = nfse.emitente.inscricao_municipal.zfill(8)
         serie = nfse.serie.ljust(5)
         rps = nfse.identificador.zfill(12)
         emissao = nfse.data_emissao.strftime('%Y%m%d')
@@ -27,9 +29,6 @@ class Assinatura(object):
         servico = nfse.servico.codigo_tributacao_municipio.zfill(5)
         tipoDoc = self._tipos.documentoTomador
         doc = nfse.cliente.numero_documento.zfill(14)
-        print("assinatura RPS*******")
-        print(f"{insc}{serie}{rps}{emissao}{tributacao}{status}{issRetido}{valor}{deducoes}{servico}{tipoDoc}{doc}")
-        print("*********************")
         return  f"{insc}{serie}{rps}{emissao}{tributacao}{status}{issRetido}{valor}{deducoes}{servico}{tipoDoc}{doc}"
 
     def assinatura(self, nfse):

@@ -31,12 +31,16 @@ class Servicos(object):
         return self._getResultado(self.comunicacao.enviar_lote(
             e).text, homologacao)
 
+    def setSchema(self, value):
+        self.validacao.setSchema(value)
+        self.metodos.setSchema(value)
+
+
     def _getResultado(self, retorno, homologacao):
         evento = "EnvioLoteRPSResponse"
         if homologacao:
             evento = "TesteEnvioLoteRPSResponse"
         corpo = xmltodict.parse(retorno)['soap:Envelope']['soap:Body']
-        print(corpo)
         retorno = xmltodict.parse(corpo[evento]["RetornoXML"])
         return retorno
 

@@ -7,17 +7,25 @@ from tests.test_nfse_serializacao import SerializacaoNFSeTest
 
 class SerializacaoNFSesp_saoPaulo(unittest.TestCase):
 
-
-    def test_gerar(self):
+    def test_gerarNaoSimples(self):
         nfse = SerializacaoNFSeTest.get_notafiscal_servico()
+        nfse.simples = 2
         s = serializacao.Serializacao()
         x = s.gerar(nfse)
         self.assertEqual(
-                self._get_lote_esperado(),
+                self._get_lote_esperadoNaoSimples(),
                 etree.tostring(x, encoding="unicode", pretty_print=False))
 
+    def test_gerarSimples(self):
+        nfse = SerializacaoNFSeTest.get_notafiscal_servico()
+        nfse.simples = 1
+        s = serializacao.Serializacao()
+        x = s.gerar(nfse)
+        self.assertEqual(
+                self._get_lote_esperadoSimples(),
+                etree.tostring(x, encoding="unicode", pretty_print=False))
 
-    def _get_lote_esperado(self) -> str:
+    def _get_lote_esperadoNaoSimples(self) -> str:
         return SerializacaoNFSeTest.strip_xml(f"""
             <PedidoEnvioLoteRPS xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.prefeitura.sp.gov.br/nfe">
                 <Cabecalho Versao="2" xmlns="">
@@ -46,7 +54,7 @@ class SerializacaoNFSesp_saoPaulo(unittest.TestCase):
                     <ValorINSS>10.00</ValorINSS>
                     <ValorIR>10.00</ValorIR>
                     <ValorCSLL>10.00</ValorCSLL>
-                    <CodigoServico>0101</CodigoServico>
+                    <CodigoServico>1234</CodigoServico>
                     <AliquotaServicos>10.00</AliquotaServicos>
                     <ISSRetido>true</ISSRetido>
                     <CPFCNPJTomador>
@@ -88,6 +96,59 @@ class SerializacaoNFSesp_saoPaulo(unittest.TestCase):
             """)
 
                                               
+    def _get_lote_esperadoSimples(self) -> str:
+        return SerializacaoNFSeTest.strip_xml(f"""
+            <PedidoEnvioLoteRPS xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.prefeitura.sp.gov.br/nfe">
+                <Cabecalho Versao="1" xmlns="">
+                    <CPFCNPJRemetente>
+                        <CNPJ>45111111111100</CNPJ>
+                    </CPFCNPJRemetente>
+                    <transacao>true</transacao>
+                    <dtInicio>2025-04-10</dtInicio>
+                    <dtFim>2025-04-10</dtFim>
+                    <QtdRPS>1</QtdRPS>
+                    <ValorTotalServicos>10.00</ValorTotalServicos>
+                    <ValorTotalDeducoes>10.00</ValorTotalDeducoes>
+                </Cabecalho>
+                <RPS xmlns="">
+                    <Assinatura>12312312323123123</Assinatura>
+                    <ChaveRPS>              
+                        <InscricaoPrestador>00000000</InscricaoPrestador>
+                        <SerieRPS>A1</SerieRPS>
+                        <NumeroRPS>50</NumeroRPS>
+                    </ChaveRPS>
+                    <TipoRPS>RPS</TipoRPS>
+                    <DataEmissao>2025-04-10</DataEmissao>
+                    <StatusRPS>N</StatusRPS>
+                    <TributacaoRPS>T</TributacaoRPS>
+                    <ValorServicos>10.00</ValorServicos>
+                    <ValorDeducoes>10.00</ValorDeducoes>
+                    <ValorPIS>10.00</ValorPIS>
+                    <ValorCOFINS>10.00</ValorCOFINS>
+                    <ValorINSS>10.00</ValorINSS>
+                    <ValorIR>10.00</ValorIR>
+                    <ValorCSLL>10.00</ValorCSLL>
+                    <CodigoServico>1234</CodigoServico>
+                    <AliquotaServicos>10.00</AliquotaServicos>
+                    <ISSRetido>true</ISSRetido>
+                    <CPFCNPJTomador>
+                        <CNPJ>99999999999999</CNPJ>
+                    </CPFCNPJTomador>
+                    <RazaoSocialTomador>NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL</RazaoSocialTomador>
+                    <EnderecoTomador>
+                        <Logradouro>Rua tal</Logradouro>
+                        <NumeroEndereco>0</NumeroEndereco>
+                        <ComplementoEndereco>Ao lado de lugar nenhum</ComplementoEndereco>
+                        <Bairro>Centro</Bairro>
+                        <Cidade>1234567</Cidade>
+                        <UF>MG</UF>
+                        <CEP>33257010</CEP>
+                    </EnderecoTomador>
+                    <Discriminacao>Mensalidade</Discriminacao>
+                </RPS>
+            </PedidoEnvioLoteRPS>
+            """)
+
 
 
     """
@@ -292,7 +353,7 @@ class SerializacaoNFSesp_saoPaulo(unittest.TestCase):
                 <ns1:LoteRps Id="1">
                     <ns2:NumeroLote>1</ns2:NumeroLote>
                     <ns2:Cnpj>45111111111100</ns2:Cnpj>
-                    <ns2:InscricaoMunicipal>000000</ns2:InscricaoMunicipal>
+                    <ns2:InscricaoMunicipal>000000000</ns2:InscricaoMunicipal>
                     <ns2:QuantidadeRps>1</ns2:QuantidadeRps>
                     <ns2:ListaRps>
                         <ns2:Rps>

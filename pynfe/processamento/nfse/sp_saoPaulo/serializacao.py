@@ -6,21 +6,20 @@ NAMESPACE_NFES = "http://www.prefeitura.sp.gov.br/nfe"
 XSD = "http://www.w3.org/2001/XMLSchema"
 XSI = "http://www.w3.org/2001/XMLSchema-instance"
 VERSAO = "2"
+VERSAO_SIMPLES = "1"
 
-class Serializacao(object):
-
-    def gerar(self, nfse):
-        solicitacao = "PedidoEnvioLoteRPS"
-        self._nfse = nfse
-        if not isinstance(nfse, list):
-            self._nfse = [nfse]
+class Serializacao(object): 
+    def gerar(self, nfse): 
+        solicitacao = "PedidoEnvioLoteRPS" 
+        self._nfse = nfse 
+        if not isinstance(nfse, list): 
+            self._nfse = [nfse] 
         r = etree.Element(solicitacao, 
-                          nsmap={"xsd": XSD, "xsi": XSI},
-                          xmlns=NAMESPACE_NFES)
-        r.append(Cabecalho(self._nfse).element)
-        for n in self._nfse:
-            r.append(RPS(n).element)
-        #print(etree.tostring(r, encoding="unicode", pretty_print=False))
+                          nsmap={"xsd": XSD, "xsi": XSI}, 
+                          xmlns=NAMESPACE_NFES) 
+        r.append(Cabecalho(self._nfse).element) 
+        for n in self._nfse: 
+            r.append(RPS(n).element) 
         return r
 
 class Elemento(object):
@@ -32,7 +31,7 @@ class Elemento(object):
     @property
     def element(self):
         return self._element
-
+        
     def _getRaiz(self) -> etree.Element:
         pass
 
@@ -45,6 +44,13 @@ class Elemento(object):
             value ='%.2f' % value
         etree.SubElement(raiz, element).text = value
 
+    @property
+    def _simples(self):
+        if isinstance(self._nfse, list):
+            return self._nfse[0].simples==1
+        return self._nfse.simples==1
+
+
 class Cabecalho(Elemento):
 
     def __init__(self, nfse):
@@ -54,13 +60,17 @@ class Cabecalho(Elemento):
         self._element.append(self._dtInicio)
         self._element.append(self._dtFim)
         self._element.append(self._qtdRPS)
+        if self._simples:
+            self._element.append(self._valorTotalServicos)
+            self._element.append(self._valorTotalDeducoes)
 
     def _getRaiz(self):
         r = etree.Element("Cabecalho")
         r.attrib["Versao"] = VERSAO
+        if self._simples:
+            r.attrib["Versao"] = VERSAO_SIMPLES
         r.attrib["xmlns"] = ""
         return r
-
 
     @property
     def _remetente(self):
@@ -102,6 +112,24 @@ class Cabecalho(Elemento):
         r.text = str(len(self._nfse))
         return r
 
+    @property
+    def _valorTotalServicos(self):
+        t = 0
+        for n in self._nfse:
+            t += n.servico.valor_liquido
+        r = etree.Element('ValorTotalServicos')
+        r.text = '%.2f' % t
+        return r
+
+    @property
+    def _valorTotalDeducoes(self):
+        t = 0
+        for n in self._nfse:
+            t += n.servico.valor_deducoes
+        r = etree.Element('ValorTotalDeducoes')
+        r.text = '%.2f' % t
+        return r
+
 class RPS(Elemento):
 
     def __init__(self, nfse):
@@ -113,6 +141,8 @@ class RPS(Elemento):
         self._add("DataEmissao", self._nfse.data_emissao.strftime("%Y-%m-%d"))
         self._add("StatusRPS", 'N')
         self._add("TributacaoRPS", self._tipos.tributacaoRPS)
+        if self._simples:
+            self._add("ValorServicos", self._nfse.servico.valor_liquido)
         self._add("ValorDeducoes", self._nfse.servico.valor_deducoes)
         self._add("ValorPIS", nfse.servico.valor_pis)
         self._add("ValorCOFINS", self._nfse.servico.valor_confins)
@@ -126,13 +156,14 @@ class RPS(Elemento):
         self._add("RazaoSocialTomador", self._nfse.cliente.razao_social)
         self._element.append(self._enderecoTomador)
         self._add("Discriminacao", self._nfse.servico.discriminacao)
-        self._add("ValorFinalCobrado", self._nfse.servico.valor_liquido)
-        self._add("ValorIPI", self._nfse.servico.valor_ipi)
-        self._add("ExigibilidadeSuspensa", self._nfse.servico.exigibilidade)
-        self._add("PagamentoParceladoAntecipado", self._nfse.pgtoParcAntec)
-        self._add("NBS", self._nfse.servico.nbs.replace('.',''))
-        self._add("cLocPrestacao", self._nfse.cliente.endereco_cod_municipio)
-        self._element.append(self._ibscbs)
+        if not self._simples:
+            self._add("ValorFinalCobrado", self._nfse.servico.valor_liquido)
+            self._add("ValorIPI", self._nfse.servico.valor_ipi)
+            self._add("ExigibilidadeSuspensa", self._nfse.servico.exigibilidade)
+            self._add("PagamentoParceladoAntecipado", self._nfse.pgtoParcAntec)
+            self._add("NBS", self._nfse.servico.nbs.replace('.',''))
+            self._add("cLocPrestacao", self._nfse.cliente.endereco_cod_municipio)
+            self._element.append(self._ibscbs)
 
     @property
     def _cnpjCpfTomador(self):
@@ -166,10 +197,17 @@ class RPS(Elemento):
     @property
     def _chaveRPS(self):
         r = etree.Element("ChaveRPS")
-        etree.SubElement(r, "InscricaoPrestador").text = self._nfse.emitente.inscricao_municipal
+        etree.SubElement(r, "InscricaoPrestador").text = self._inscricaoEmitente
         etree.SubElement(r, "SerieRPS").text = self._nfse.serie
         etree.SubElement(r, "NumeroRPS").text = self._nfse.identificador
         return r
+
+    @property
+    def _inscricaoEmitente(self):
+        if self._nfse.simples==1:
+            return self._nfse.emitente.inscricao_municipal.zfill(8)
+        return self._nfse.emitente.inscricao_municipal
+
 
     def _getRaiz(self):
         return etree.Element("RPS", xmlns="") 

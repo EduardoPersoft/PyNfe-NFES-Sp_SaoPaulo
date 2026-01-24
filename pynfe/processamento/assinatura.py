@@ -77,7 +77,4 @@ class AssinaturaA1(Assinatura):
         if retorna_string:
             return etree.tostring(signed_root, encoding="unicode", pretty_print=False)
         else:
-            print("assinado*******")
-            print( etree.tostring(signed_root, encoding="unicode", pretty_print=False))
-            print("*******assinado")
             return signed_root

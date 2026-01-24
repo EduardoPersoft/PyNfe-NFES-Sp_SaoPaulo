@@ -13,6 +13,7 @@ class AssinaturaRPS(unittest.TestCase):
 
     def test_validacao(self):
         nfse = SerializacaoNFSeTest.get_notafiscal_servico()
+        nfse.simples = 2
         assRPS = assinaturaRPS.Assinatura(
                     caminho_arquivo=self.certificado,
                     senha=self.senha)
@@ -21,6 +22,23 @@ class AssinaturaRPS(unittest.TestCase):
         x = s.gerar(nfse)
         ass = AssinaturaA1(self.certificado, self.senha)
         v = validacao.Validacao()
+        r = v.validarLote(ass.assinarNfse(x))
+        for erro in v.erros:
+            print(f"- Linha {erro.line}: {erro.message}")
+        self.assertTrue(r)
+
+    
+    def test_validacaoSimples(self):
+        nfse = SerializacaoNFSeTest.get_notafiscal_servico()
+        assRPS = assinaturaRPS.Assinatura(
+                    caminho_arquivo=self.certificado,
+                    senha=self.senha)
+        assRPS.assinar(nfse)
+        s = serializacao.Serializacao()
+        x = s.gerar(nfse)
+        ass = AssinaturaA1(self.certificado, self.senha)
+        v = validacao.Validacao()
+        v.setSchema('1')
         r = v.validarLote(ass.assinarNfse(x))
         for erro in v.erros:
             print(f"- Linha {erro.line}: {erro.message}")
