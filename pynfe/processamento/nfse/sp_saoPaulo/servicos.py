@@ -6,8 +6,37 @@ from pynfe.processamento.nfse.sp_saoPaulo import serializacao
 from pynfe.processamento.nfse.sp_saoPaulo import metodos
 from pynfe.processamento.nfse.sp_saoPaulo import comunicacao
 from pynfe.processamento.nfse.sp_saoPaulo import validacao
+from pynfe.processamento.nfse.sp_saoPaulo import resposta
 from pynfe.processamento.nfse import envelope
 
+R = {'RetornoEnvioLoteRPS': 
+        {'@xmlns:xsd': 'http://www.w3.org/2001/XMLSchema', 
+         '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+         '@xmlns': 'http://www.prefeitura.sp.gov.br/nfe',
+         'Cabecalho': {'@Versao': '1',
+                       '@xmlns': '',
+                       'Sucesso': 'true', 
+                       'InformacoesLote': {
+                            'NumeroLote': '1659107287',
+                            'InscricaoPrestador': '32415354', 
+                            'CPFCNPJRemetente': {'CNPJ': '47294988000102'},
+                            'DataEnvioLote': '2026-01-26T19:18:48',
+                            'QtdNotasProcessadas': '1',
+                            'TempoProcessamento': '0',
+                            'ValorTotalServicos': '1259.52'}},
+         'Alerta': {'@xmlns': '',
+                    'Codigo': '307',
+                    'Descricao': 'Código de Serviço informado (2800) da NFS-e não está cadastrado para o prestador de serviço.',
+                    'ChaveRPS': {'InscricaoPrestador': '32415354',
+                                 'SerieRPS': '3',
+                                 'NumeroRPS': '1'}},
+         'ChaveNFeRPS': {'@xmlns': '',
+                         'ChaveNFe': {'InscricaoPrestador': '32415354',
+                                      'NumeroNFe': '8301', 
+                                      'CodigoVerificacao': '85KJGFGG'},
+                         'ChaveRPS': {'InscricaoPrestador': '32415354',
+                                      'SerieRPS': '3',
+                                      'NumeroRPS': '1'}}}}
 class Servicos(object):
 
     def __init__(self, certificado, senha):
@@ -46,15 +75,15 @@ class Servicos(object):
         else:
             self.setSchema('2')
 
-
-
     def _getResultado(self, retorno, homologacao):
         evento = "EnvioLoteRPSResponse"
         if homologacao:
             evento = "TesteEnvioLoteRPSResponse"
         corpo = xmltodict.parse(retorno)['soap:Envelope']['soap:Body']
         retorno = xmltodict.parse(corpo[evento]["RetornoXML"])
-        return retorno
+        print(retorno)
+        r = resposta.Resposta(retorno)
+        return r.rps
 
 
     def assinarRPS(self, nfse):
@@ -124,3 +153,4 @@ class Servicos(object):
         self._assinatura = assinatura.AssinaturaA1(self._certificado,
                                                    self._senha)
         return self._assinatura
+
