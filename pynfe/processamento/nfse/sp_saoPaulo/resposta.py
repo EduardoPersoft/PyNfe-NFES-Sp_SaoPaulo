@@ -2,6 +2,7 @@ class Resposta(object):
 
     def __init__(self, retorno):
         self._retorno = retorno
+        self._chkErros()
         self._alertas = self._getAlertas()
         self._rps = self._getRPS()
 
@@ -29,6 +30,8 @@ class Resposta(object):
 
     def _getAlertas(self):
         r = []
+        if not self._retorno['RetornoEnvioLoteRPS'].get('Alerta'):
+            return r
         _alertas = self._retorno['RetornoEnvioLoteRPS']['Alerta']
         if not isinstance(_alertas, list):
             _alertas = [_alertas]
@@ -37,6 +40,17 @@ class Resposta(object):
                       'codigo': a['Codigo'],
                       'descricao': a['Descricao']}) 
         return r
+
+    def _chkErros(self):
+        r = []
+        if not self._retorno['RetornoEnvioLoteRPS'].get('Erro'):
+            return None 
+        _erros = self._retorno['RetornoEnvioLoteRPS']['Erro']
+        if not isinstance(_erros, list):
+            _erros = [_erros]
+        for a in _erros:
+            r.append(f"{a['Codigo']} {a['Descricao']}")
+        raise Exception('\n'.join(r))
     
     @property
     def rps(self):
@@ -45,6 +59,7 @@ class Resposta(object):
     @property
     def alertas(self):
         return self._alertas 
+
 
     def _url(self, inscricao, nfe, cdSeguranca):
         return f'https://nfe.prefeitura.sp.gov.br/nfe.aspx?ccm={inscricao}&nf={nfe}&cod={cdSeguranca}'
