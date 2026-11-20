@@ -1,4 +1,3 @@
-from xml.sax.handler import property_dom_node
 from lxml import etree
 from pynfe.processamento.nfse.sp_saoPaulo.flags import (
         NAMESPACE_NFES,

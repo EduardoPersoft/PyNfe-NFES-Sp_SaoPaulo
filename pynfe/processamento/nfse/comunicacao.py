@@ -37,7 +37,6 @@ class Comunicacao(object):
                 verify=True,
                 timeout=timeout,
             )
-            print(self.xml)
             result.encoding = "utf-8"
             return result
         except requests.exceptions.RequestException as e:

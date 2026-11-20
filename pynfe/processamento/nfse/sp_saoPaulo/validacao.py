@@ -1,21 +1,26 @@
+import os
 from lxml import etree
+from pynfe.utils import CAMINHO_DATA
 
 class Validacao(object):
 
     def __init__(self):
         self._schema = '2'
-        self._folder = 'pynfe/data/XSDs/NFS-e/sp_saoPaulo/' 
+        self._folder = os.path.join(CAMINHO_DATA, 'XSDs', 'NFS-e', 'sp_saoPaulo')
         
     def validarLote(self, loteAssinado):
         return self._validar(
-                f'{self._folder}{self._pedidoEnviarLote}',
+                os.path.join(self._folder, self._pedidoEnviarLote),
                 loteAssinado)
 
     def _validar(self, xsd, value):
         self._nfse = value
         xmlschema_doc = etree.parse(xsd)
         xmlschema = etree.XMLSchema(xmlschema_doc)
-        r = xmlschema.validate(value)
+        # Valida o XML como será enviado (serializado e lido de novo). O signxml
+        # cria a Signature sem namespace na árvore em memória e depende só da
+        # declaração xmlns, que só vale depois de serializar.
+        r = xmlschema.validate(etree.fromstring(etree.tostring(value)))
         self._erros = xmlschema.error_log
         return r
 
