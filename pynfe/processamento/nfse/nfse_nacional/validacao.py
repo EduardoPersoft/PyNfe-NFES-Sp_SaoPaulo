@@ -16,6 +16,10 @@ class Validacao(object):
         return self._validar(
                 os.path.join(self._folder, f'DPS_v{self._versao}.xsd'), dps)
 
+    def validarPedidoEvento(self, pedido):
+        return self._validar(
+                os.path.join(self._folder, f'pedRegEvento_v{self._versao}.xsd'), pedido)
+
     def _validar(self, xsd, value):
         xmlschema = etree.XMLSchema(etree.parse(xsd))
         # Valida o XML como será enviado (serializado e lido de novo). O

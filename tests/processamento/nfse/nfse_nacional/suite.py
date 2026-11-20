@@ -4,6 +4,7 @@ from tests.processamento.nfse.nfse_nacional import compactador
 from tests.processamento.nfse.nfse_nacional import serializacao
 from tests.processamento.nfse.nfse_nacional import assinatura
 from tests.processamento.nfse.nfse_nacional import servicos
+from tests.processamento.nfse.nfse_nacional import eventos
 
 def suite():
     loader = unittest.TestLoader()
@@ -12,6 +13,7 @@ def suite():
     suite.addTests(loader.loadTestsFromModule(serializacao))
     suite.addTests(loader.loadTestsFromModule(assinatura))
     suite.addTests(loader.loadTestsFromModule(servicos))
+    suite.addTests(loader.loadTestsFromModule(eventos))
     return suite
 
 if __name__ == '__main__':

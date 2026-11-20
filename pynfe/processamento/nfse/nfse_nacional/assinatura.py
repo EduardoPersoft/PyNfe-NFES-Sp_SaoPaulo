@@ -19,12 +19,14 @@ ALGORITMOS = {
 
 
 class Assinatura(AssinaturaA1):
-    """Assina a DPS da NFS-e Nacional com o certificado A1 (XMLDSIG
-    envelopada, C14N inclusivo).
+    """Assina a DPS e o pedido de registro de evento da NFS-e Nacional com
+    o certificado A1 (XMLDSIG envelopada, C14N inclusivo).
 
-    - A Reference aponta para o Id do infDPS ("#DPS...").
-    - A Signature fica como último filho de DPS, depois do infDPS, com o
-      namespace do XMLDSIG como padrão (sem prefixo "ds:").
+    - A Reference aponta para o Id do grupo de informações ("#DPS..." no
+      infDPS, "#PRE..." no infPedReg).
+    - A Signature fica como último filho da raiz, depois do grupo de
+      informações, com o namespace do XMLDSIG como padrão (sem prefixo
+      "ds:", regra E1228).
     - Não remove acentos: o XML assinado é o mesmo que foi gerado.
 
     A assinatura é montada aqui, sem o signxml, porque o C14N inclusivo de
@@ -39,25 +41,34 @@ class Assinatura(AssinaturaA1):
         self._algoritmo = ALGORITMOS[algoritmo]
 
     def assinarDPS(self, dps: etree._Element) -> etree._Element:
+        """Assina a DPS; a Reference aponta para o Id do infDPS."""
+        return self._assinar(dps, "infDPS", "DPS")
+
+    def assinarPedidoEvento(self, pedido: etree._Element) -> etree._Element:
+        """Assina o pedido de registro de evento (pedRegEvento); a Reference
+        aponta para o Id do infPedReg."""
+        return self._assinar(pedido, "infPedReg", "Pedido de registro de evento")
+
+    def _assinar(self, xml, nomeInfo, documento):
         # Trabalha sobre uma cópia limpa, igual ao que será enviado.
-        dps = etree.fromstring(etree.tostring(dps))
-        infDPS = dps.find("{%s}infDPS" % NAMESPACE_NFSE)
-        if infDPS is None or not infDPS.get("Id"):
-            raise Exception("DPS sem infDPS com o atributo Id.")
-        if dps.find("{%s}Signature" % DS) is not None:
-            raise Exception("DPS já assinada.")
+        raiz = etree.fromstring(etree.tostring(xml))
+        info = raiz.find("{%s}%s" % (NAMESPACE_NFSE, nomeInfo))
+        if info is None or not info.get("Id"):
+            raise Exception("%s sem %s com o atributo Id." % (documento, nomeInfo))
+        if raiz.find("{%s}Signature" % DS) is not None:
+            raise Exception("%s já assinado." % documento)
 
         metodo, metodoDigest, hashAssinatura, hashDigest = self._algoritmo
 
         digest = base64.b64encode(
-            hashDigest(self._c14n(infDPS)).digest()).decode("ascii")
+            hashDigest(self._c14n(info)).digest()).decode("ascii")
 
-        signature = etree.SubElement(dps, self._ds("Signature"), nsmap={None: DS})
+        signature = etree.SubElement(raiz, self._ds("Signature"), nsmap={None: DS})
         signedInfo = etree.SubElement(signature, self._ds("SignedInfo"))
         etree.SubElement(signedInfo, self._ds("CanonicalizationMethod"), Algorithm=C14N)
         etree.SubElement(signedInfo, self._ds("SignatureMethod"), Algorithm=metodo)
         reference = etree.SubElement(signedInfo, self._ds("Reference"),
-                                     URI="#%s" % infDPS.get("Id"))
+                                     URI="#%s" % info.get("Id"))
         transforms = etree.SubElement(reference, self._ds("Transforms"))
         etree.SubElement(transforms, self._ds("Transform"), Algorithm=ENVELOPED)
         etree.SubElement(transforms, self._ds("Transform"), Algorithm=C14N)
@@ -72,7 +83,7 @@ class Assinatura(AssinaturaA1):
         keyInfo = etree.SubElement(signature, self._ds("KeyInfo"))
         x509Data = etree.SubElement(keyInfo, self._ds("X509Data"))
         etree.SubElement(x509Data, self._ds("X509Certificate")).text = self._certificadoBase64
-        return dps
+        return raiz
 
     @staticmethod
     def _ds(nome):
@@ -88,9 +99,9 @@ class Assinatura(AssinaturaA1):
         padrão de um ancestral, o que não é C14N correto e faria a Sefin
         recusar a assinatura. Com a cópia como raiz o resultado é correto.
         A cópia declara na raiz os namespaces herdados que são usados; na
-        DPS os únicos são os namespaces padrão da NFS-e (infDPS) e do
-        XMLDSIG (SignedInfo), então o resultado é igual ao C14N inclusivo do
-        trecho.
+        DPS e no pedido de evento os únicos são os namespaces padrão da NFS-e
+        (infDPS, infPedReg) e do XMLDSIG (SignedInfo), então o resultado é
+        igual ao C14N inclusivo do trecho.
         """
         copia = etree.fromstring(etree.tostring(elemento))
         return etree.tostring(copia, method="c14n", exclusive=False,

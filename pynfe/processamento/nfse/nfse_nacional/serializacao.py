@@ -36,6 +36,18 @@ class Serializacao(object):
         return DPS(nfse, homologacao).element
 
 
+def dataHoraComFuso(d):
+    """Data e hora no formato AAAA-MM-DDThh:mm:ssTZD usado pela NFS-e
+    Nacional. Sem tzinfo, usa o horário de Brasília (-03:00)."""
+    texto = d.strftime('%Y-%m-%dT%H:%M:%S')
+    if d.tzinfo is None or d.utcoffset() is None:
+        return texto + FUSO_HORARIO_PADRAO
+    minutos = int(d.utcoffset().total_seconds() // 60)
+    sinal = '-' if minutos < 0 else '+'
+    minutos = abs(minutos)
+    return "%s%s%02d:%02d" % (texto, sinal, minutos // 60, minutos % 60)
+
+
 def _somenteNumeros(value):
     return re.sub(r'\D', '', str(value or ''))
 
@@ -214,14 +226,7 @@ class InfDPS(Elemento):
 
     @property
     def _dhEmi(self):
-        d = self._nfse.data_emissao
-        texto = d.strftime('%Y-%m-%dT%H:%M:%S')
-        if d.tzinfo is None or d.utcoffset() is None:
-            return texto + FUSO_HORARIO_PADRAO
-        minutos = int(d.utcoffset().total_seconds() // 60)
-        sinal = '-' if minutos < 0 else '+'
-        minutos = abs(minutos)
-        return "%s%s%02d:%02d" % (texto, sinal, minutos // 60, minutos % 60)
+        return dataHoraComFuso(self._nfse.data_emissao)
 
     @property
     def _serie(self):

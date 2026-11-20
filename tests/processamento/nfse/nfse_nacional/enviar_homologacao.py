@@ -19,6 +19,10 @@ Uso, a partir da raiz do projeto:
     # Consulta uma NFS-e já gerada
     python -m tests.processamento.nfse.nfse_nacional.enviar_homologacao --consultar CHAVE
 
+    # Cancela uma NFS-e (autor: CNPJ do emitente em homologacao.json)
+    python -m tests.processamento.nfse.nfse_nacional.enviar_homologacao \
+        --cancelar CHAVE --motivo 1 --justificativa "Erro na emissão da nota de teste"
+
 A senha do certificado é lida da variável de ambiente NFSE_SENHA ou pedida
 no terminal; ela não é gravada em lugar nenhum. Os XMLs gerados são salvos
 em homologacao_saida/ (ignorado pelo git).
@@ -113,6 +117,13 @@ def main():
                    help="gera, assina e valida a DPS, sem enviar")
     p.add_argument("--consultar", metavar="CHAVE",
                    help="consulta uma NFS-e pela chave de acesso")
+    p.add_argument("--cancelar", metavar="CHAVE",
+                   help="cancela uma NFS-e pela chave de acesso")
+    p.add_argument("--motivo", type=int, default=1,
+                   help="motivo do cancelamento: 1 - Erro na Emissão, "
+                        "2 - Serviço não Prestado, 9 - Outros (padrão 1)")
+    p.add_argument("--justificativa", default="Cancelamento de nota de teste em homologação",
+                   help="justificativa do cancelamento, de 15 a 255 caracteres")
     p.add_argument("--cadeia", help="arquivo PEM com a cadeia de certificados "
                                     "do servidor, se houver erro de SSL")
     p.add_argument("--timeout", type=int, default=60)
@@ -141,6 +152,25 @@ def main():
             print("XML salvo em %s" % salvar(args.saida, "nfse_%s.xml" % r["chaveAcesso"], r["nfseXml"]))
             return 0
 
+        if args.cancelar:
+            pedido = servicos.gerarPedidoCancelamento(
+                args.cancelar, config["emitente"]["cnpj"], args.motivo,
+                args.justificativa, homologacao=True)
+            idPedido = pedido.find("{%s}infPedReg" % NAMESPACE_NFSE).get("Id")
+            print("Pedido de cancelamento gerado, assinado e válido no XSD: %s" % idPedido)
+            print("XML salvo em %s" % salvar(args.saida, "%s.xml" % idPedido, pedido))
+            if args.gerar_apenas:
+                return 0
+            print("Enviando...")
+            r = servicos.cancelar(args.cancelar, config["emitente"]["cnpj"], args.motivo,
+                                  args.justificativa, homologacao=True)
+            print("\nNFS-e cancelada%s!" % (" (recuperado após falha de rede)"
+                                            if r.get("recuperado") else ""))
+            print("  Processado em: %s" % r.get("dataHoraProcessamento"))
+            print("  Evento salvo em %s" % salvar(
+                args.saida, "evento_cancelamento_%s.xml" % args.cancelar, r["eventoXml"]))
+            return 0
+
         nfse = montar_nfse(config, args.numero, args.serie)
         dps = servicos.gerarDPS(nfse, homologacao=True)
         idDps = dps.find("{%s}infDPS" % NAMESPACE_NFSE).get("Id")
@@ -163,8 +193,8 @@ def main():
             print("  %s" % (e.texto or "").strip()[:1000])
         return 1
     except ErroComunicacao as e:
-        print("\nFalha de comunicação, a NFS-e não foi gerada. É seguro "
-              "reenviar com o mesmo número.\n  %s" % e.causa)
+        print("\nFalha de comunicação e a Sefin não registrou o envio. É seguro "
+              "reenviar (no caso da nota, com o mesmo número).\n  %s" % e.causa)
         return 1
     except requests.exceptions.SSLError as e:
         print("\nErro de SSL ao conectar na Sefin. Se for a cadeia de certificados "

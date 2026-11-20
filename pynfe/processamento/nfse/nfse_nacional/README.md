@@ -23,7 +23,7 @@ Como o convênio está ativo, o padrão `municipio_incidencia_conveniado = True`
 
 ## Situação
 
-Em desenvolvimento. Já existem a serialização da DPS (leiaute 1.01), a assinatura, a validação com o XSD, o compactador e a comunicação com a Sefin (envio da DPS e consultas). Falta testar em homologação com um certificado real e implementar os eventos (cancelamento). As seções marcadas com **(a implementar)** descrevem o plano, não código existente.
+Em desenvolvimento. Já existem a serialização da DPS (leiaute 1.01), a assinatura, a validação com o XSD, o compactador, a comunicação com a Sefin (envio da DPS e consultas) e o cancelamento. Falta testar em homologação com um certificado real e implementar os demais eventos (substituição, manifestações). As seções marcadas com **(a implementar)** descrevem o plano, não código existente.
 
 # A API
 
@@ -135,10 +135,13 @@ Caminho: `pynfe/processamento/nfse/nfse_nacional/`
     - `gerarDPS(nfse, homologacao=False)`: gera, assina e valida sem enviar
     - `consultar(chaveAcesso, homologacao=False)`
     - `consultarDps(idDps, homologacao=False)`
-    - `cancelar(...)` e consulta de eventos (a implementar)
+    - `cancelar(chaveAcesso, autor, motivo, descricao, homologacao=False)`
+    - `gerarPedidoCancelamento(...)`: gera, assina e valida sem enviar
+    - `consultarEvento(chaveAcesso, tipoEvento=101101, numSeqEvento=1, homologacao=False)`
 - `serializacao.py` (implementado): gera o XML da DPS. Veja "Serialização da DPS".
-- `assinatura.py` (implementado): assina a DPS. Veja "Assinatura da DPS".
-- `validacao.py` (implementado): `Validacao(versao='1.01').validarDPS(dps)` valida a DPS com o XSD; os erros ficam em `erros`.
+- `eventos.py` (implementado): gera o pedido de registro de evento (`pedRegEvento`). Por enquanto só o cancelamento. Veja "Cancelamento".
+- `assinatura.py` (implementado): assina a DPS e o pedido de evento. Veja "Assinatura da DPS".
+- `validacao.py` (implementado): `Validacao(versao='1.01').validarDPS(dps)` e `validarPedidoEvento(pedido)` validam com o XSD; os erros ficam em `erros`.
 - `comunicacao.py` (implementado): requisições JSON por HTTPS com o certificado A1, um método por endpoint (`enviarDPS`, `consultarNFSe`, `consultarDPS`, `existeDPS`, `registrarEvento`, `consultarEvento`). Devolve o `requests.Response` sem interpretar.
 - `resposta.py` (implementado): interpreta as respostas, descompacta os XMLs e levanta `ErroSefin` nos dois formatos de erro da API.
 - `flags.py` (implementado): URLs dos ambientes, namespace, versões e códigos usados na DPS.
@@ -349,6 +352,28 @@ Erros de certificado ou TLS (`requests.exceptions.SSLError`) não são tratados 
 
 Depois de um `ErroComunicacao` é seguro reenviar a mesma nota (mesma série e número): a Sefin recusa uma DPS com série, número, município e CNPJ/CPF já usados em uma NFS-e (regra E0014), então o reenvio não gera nota em duplicidade. Uma nota com outro número, por outro lado, geraria outra NFS-e.
 
+## Cancelamento
+
+```python
+from pynfe.processamento.nfse.nfse_nacional.flags import CANCELAMENTO_ERRO_EMISSAO
+
+r = servicos.cancelar(chaveAcesso, "11222333000181", CANCELAMENTO_ERRO_EMISSAO,
+                      "Valor do serviço informado errado", homologacao=True)
+r["eventoXml"]   # XML do evento de cancelamento registrado pela Sefin (str)
+```
+
+- `autor`: CNPJ ou CPF do prestador que emitiu a NFS-e.
+- `motivo`: 1 - Erro na Emissão; 2 - Serviço não Prestado; 9 - Outros (constantes `CANCELAMENTO_*` em `flags.py`).
+- `descricao`: justificativa, de 15 a 255 caracteres.
+
+O pedido (`pedRegEvento`, evento `e101101`) é gerado por `eventos.PedidoEvento().cancelamento(...)`, assinado com a `Reference` apontando para o `Id` do `infPedReg` e validado com `pedRegEvento_v1.01.xsd` antes do envio em `POST /nfse/{chave}/eventos`. Motivo, justificativa, autor ou chave inválidos levantam `ErroRegraNegocio` sem enviar nada.
+
+- **Id do pedido:** `"PRE"` + chave de acesso (50) + tipo do evento (6), 59 posições, conforme o padrão `PRE[0-9]{56}` do XSD. A documentação do XSD cita também o `nPedRegEvento`, mas ele não cabe no padrão e não existe no leiaute 1.01; ele faz parte só do Id do evento gerado pela Sefin (`"EVT"...`).
+- **dhEvento:** a hora local menos um minuto, para não ficar posterior ao processamento se o relógio local estiver adiantado.
+- **Falha de rede:** como no envio da DPS, `cancelar` consulta o evento (`GET /nfse/{chave}/eventos/101101/1`). Se foi registrado, devolve-o com `recuperado = True`; se não, levanta `ErroComunicacao` e o pedido pode ser reenviado.
+
+A planilha de regras de negócio não tem aba de eventos; as regras do cancelamento (prazo, NFS-e já cancelada etc.) são verificadas pela Sefin no envio.
+
 ## Seleção do serviço
 
 `autorizador.get` recebe o parâmetro `nfse_nacional` (padrão `False`):
@@ -373,7 +398,7 @@ Como nosso código ainda não foi validado pelo mantenedor do PyNFe, as rotinas 
 
 - Confirmar o algoritmo de assinatura aceito (RSA-SHA1 ou RSA-SHA256): a planilha de regras não trata disso.
 - Confirmar, para cada empresa, se ela tem registro no CNC do município emissor, para decidir `prestador_informar_im` (E0116/E0120). Em São Paulo a emissão padrão pelo cadastro CNPJ está habilitada, então uma empresa pode emitir sem registro no CNC; nesse caso a IM não pode ser informada (`prestador_informar_im = False`). O envio em homologação mostra qual é o caso: E0120 indica que a IM não deve ir, E0116 que deve.
-- Significado dos tipos de evento.
+- Implementar os demais eventos (cancelamento por substituição, manifestações).
 - Incluir os XSDs no `package_data` do `setup.py` (hoje só `data/**/*.txt` é incluído).
 
 # Testes
@@ -386,6 +411,7 @@ python -m tests.processamento.nfse.nfse_nacional.suite
 
 - `compactador.py`: testes do `Compactador`.
 - `assinatura.py`: testes da assinatura, com verificação independente do libxml2.
+- `eventos.py`: testes do pedido de cancelamento (serialização, assinatura com verificação independente do libxml2 e envio com o `requests` simulado).
 - `servicos.py`: testes da comunicação com o `requests` simulado (envio, rejeição, resposta não JSON, recuperação após falha de rede, consultas e autorizador). Não acessam a Sefin.
 
 ## Teste em homologação
@@ -404,6 +430,10 @@ python -m tests.processamento.nfse.nfse_nacional.suite
 4. Consulte uma nota já gerada:
    ```
    python -m tests.processamento.nfse.nfse_nacional.enviar_homologacao --consultar CHAVE
+   ```
+5. Cancele uma nota (o autor é o CNPJ do emitente em `homologacao.json`; `--gerar-apenas` também funciona aqui):
+   ```
+   python -m tests.processamento.nfse.nfse_nacional.enviar_homologacao --cancelar CHAVE --motivo 1 --justificativa "Erro na emissão da nota de teste"
    ```
 
 A senha do certificado vem da variável de ambiente `NFSE_SENHA` ou é pedida no terminal, e não é gravada. Os XMLs da DPS e da NFS-e ficam em `homologacao_saida/`. Outras opções: `--serie`, `--config`, `--saida`, `--timeout` e `--cadeia arquivo.pem` (cadeia de certificados do servidor, se houver erro de SSL).
