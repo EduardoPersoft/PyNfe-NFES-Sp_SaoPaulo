@@ -81,3 +81,6 @@ db.*
 TODO*
 
 venv
+# NFS-e Nacional: dados reais e saída do teste em homologação
+tests/processamento/nfse/nfse_nacional/homologacao.json
+tests/processamento/nfse/nfse_nacional/homologacao_saida/

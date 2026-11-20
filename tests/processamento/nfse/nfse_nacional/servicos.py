@@ -161,6 +161,12 @@ class Recuperacao(Base):
         self.assertTrue(cm.exception.idDps.startswith("DPS"))
         self.assertIsInstance(cm.exception.causa, requests.ConnectionError)
 
+    def test_erro_ssl_nao_e_falha_de_rede(self):
+        with mock.patch(REQUEST, side_effect=requests.exceptions.SSLError("certificate verify failed")) as req:
+            with self.assertRaises(requests.exceptions.SSLError):
+                self.servicos.enviar(get_nfse(), homologacao=True)
+        self.assertEqual(req.call_count, 1)
+
     def test_consulta_tambem_falha(self):
         with mock.patch(REQUEST, side_effect=requests.Timeout("tempo esgotado")):
             with self.assertRaises(servicos.ErroComunicacao):

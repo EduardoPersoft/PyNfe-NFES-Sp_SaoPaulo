@@ -7,6 +7,20 @@ Integração com a API da Sefin Nacional para emissão de NFS-e pelo Portal Naci
 - Empresas enquadradas no Simples Nacional não podem usar as APIs da Prefeitura de São Paulo e devem emitir pelo Portal Nacional da NFS-e.
 - Esta integração segue a mesma organização de `sp_saoPaulo/` (veja `../README.md`).
 
+## Convênio de São Paulo (3550308)
+
+Parâmetros do convênio consultados em 20/11/2026:
+
+| Parâmetro | Valor | Efeito |
+|---|---|---|
+| `aderenteAmbienteNacional` | 1 | Convênio ativo no Sistema Nacional (sem rejeição E0037/E0038) |
+| `aderenteEmissorNacional` | 1 | Emissão pelos emissores nacionais permitida (sem rejeição E0039) |
+| `situacaoEmissaoPadraoContribuintesRFB` | 1 | Empresas com endereço em São Paulo no cadastro CNPJ podem emitir mesmo sem registro no CNC (E0084) |
+| `aderenteMAN` | 0 | Não aderiu ao Módulo de Apuração Nacional; não afeta a DPS |
+| `permiteAproveitametoDeCreditos` | true | Não afeta a DPS gerada hoje |
+
+Como o convênio está ativo, o padrão `municipio_incidencia_conveniado = True` vale para serviços com incidência em São Paulo: a alíquota vem da parametrização da Sefin.
+
 ## Situação
 
 Em desenvolvimento. Já existem a serialização da DPS (leiaute 1.01), a assinatura, a validação com o XSD, o compactador e a comunicação com a Sefin (envio da DPS e consultas). Falta testar em homologação com um certificado real e implementar os eventos (cancelamento). As seções marcadas com **(a implementar)** descrevem o plano, não código existente.
@@ -331,6 +345,8 @@ Se o `POST /nfse` falhar por timeout ou queda de conexão, não há como saber s
 - 200: a NFS-e foi gerada. Busca a NFS-e pela chave e devolve o resultado normalmente, com `recuperada = True`.
 - 404, ou nova falha de rede: levanta `ErroComunicacao`.
 
+Erros de certificado ou TLS (`requests.exceptions.SSLError`) não são tratados como falha de rede: são propagados direto, porque a conexão não chegou a ser feita e reenviar não resolve.
+
 Depois de um `ErroComunicacao` é seguro reenviar a mesma nota (mesma série e número): a Sefin recusa uma DPS com série, número, município e CNPJ/CPF já usados em uma NFS-e (regra E0014), então o reenvio não gera nota em duplicidade. Uma nota com outro número, por outro lado, geraria outra NFS-e.
 
 ## Seleção do serviço
@@ -356,8 +372,7 @@ Como nosso código ainda não foi validado pelo mantenedor do PyNFe, as rotinas 
 # Pendências
 
 - Confirmar o algoritmo de assinatura aceito (RSA-SHA1 ou RSA-SHA256): a planilha de regras não trata disso.
-- Confirmar se o município emissor (`cLocEmi`) tem convênio ativo no Sistema Nacional e permite os emissores públicos (E0037/E0038/E0039); sem isso a Sefin rejeita a DPS.
-- Confirmar, para cada empresa, se ela tem registro no CNC do município emissor, para decidir `prestador_informar_im` (E0116/E0120).
+- Confirmar, para cada empresa, se ela tem registro no CNC do município emissor, para decidir `prestador_informar_im` (E0116/E0120). Em São Paulo a emissão padrão pelo cadastro CNPJ está habilitada, então uma empresa pode emitir sem registro no CNC; nesse caso a IM não pode ser informada (`prestador_informar_im = False`). O envio em homologação mostra qual é o caso: E0120 indica que a IM não deve ir, E0116 que deve.
 - Significado dos tipos de evento.
 - Incluir os XSDs no `package_data` do `setup.py` (hoje só `data/**/*.txt` é incluído).
 
@@ -372,4 +387,26 @@ python -m tests.processamento.nfse.nfse_nacional.suite
 - `compactador.py`: testes do `Compactador`.
 - `assinatura.py`: testes da assinatura, com verificação independente do libxml2.
 - `servicos.py`: testes da comunicação com o `requests` simulado (envio, rejeição, resposta não JSON, recuperação após falha de rede, consultas e autorizador). Não acessam a Sefin.
+
+## Teste em homologação
+
+`enviar_homologacao.py` envia uma nota de teste para a Sefin em homologação (produção restrita) e mostra o resultado. Não faz parte da suíte: precisa de certificado ICP-Brasil real e de internet, e sempre usa o ambiente de homologação.
+
+1. Copie `homologacao_exemplo.json` para `homologacao.json` e preencha com os dados reais da empresa, do tomador e do serviço. O `homologacao.json` e a pasta `homologacao_saida/` estão no `.gitignore`.
+2. Gere, assine e valide a DPS sem enviar:
+   ```
+   python -m tests.processamento.nfse.nfse_nacional.enviar_homologacao --gerar-apenas
+   ```
+3. Envie, com um número de DPS ainda não usado:
+   ```
+   python -m tests.processamento.nfse.nfse_nacional.enviar_homologacao --numero 2
+   ```
+4. Consulte uma nota já gerada:
+   ```
+   python -m tests.processamento.nfse.nfse_nacional.enviar_homologacao --consultar CHAVE
+   ```
+
+A senha do certificado vem da variável de ambiente `NFSE_SENHA` ou é pedida no terminal, e não é gravada. Os XMLs da DPS e da NFS-e ficam em `homologacao_saida/`. Outras opções: `--serie`, `--config`, `--saida`, `--timeout` e `--cadeia arquivo.pem` (cadeia de certificados do servidor, se houver erro de SSL).
+
+A data de emissão é a hora local menos um minuto, porque a Sefin rejeita emissão posterior ao processamento (E0008).
 - `serializacao.py`: testes da serialização da DPS, incluindo a validação com o XSD 1.01. A função `get_nfse()` monta uma NFS-e de exemplo.

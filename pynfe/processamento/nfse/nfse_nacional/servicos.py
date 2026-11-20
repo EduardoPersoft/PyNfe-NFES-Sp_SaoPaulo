@@ -51,13 +51,18 @@ class Servicos(object):
         - Exception se a DPS não passar na validação do XSD;
         - resposta.ErroSefin se a Sefin recusar a DPS;
         - ErroComunicacao se houver falha de rede e a NFS-e não tiver sido
-          gerada.
+          gerada;
+        - requests.exceptions.SSLError em erro de certificado ou TLS.
         """
         dps = self.gerarDPS(nfse, homologacao)
         idDps = dps.find("{%s}infDPS" % NAMESPACE_NFSE).get("Id")
         com = self._comunicacao(homologacao)
         try:
             r = com.enviarDPS(self._compactador.compactar(dps))
+        except requests.exceptions.SSLError:
+            # Erro de certificado/TLS: a conexão não chegou a ser feita e
+            # reenviar não resolve. (SSLError é subclasse de ConnectionError.)
+            raise
         except (requests.Timeout, requests.ConnectionError) as e:
             return self._recuperar(idDps, e, homologacao)
         return self._resposta.nfse(r, sucesso=(201,))
