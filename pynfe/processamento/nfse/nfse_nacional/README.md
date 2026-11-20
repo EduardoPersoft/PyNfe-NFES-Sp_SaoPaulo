@@ -9,7 +9,7 @@ Integração com a API da Sefin Nacional para emissão de NFS-e pelo Portal Naci
 
 ## Situação
 
-Em desenvolvimento. Até agora existem apenas esta documentação e a especificação da API (`swagger.json`). As seções marcadas com **(a implementar)** descrevem o plano, não código existente.
+Em desenvolvimento. Já existem a serialização da DPS (leiaute 1.01), a validação com o XSD e o compactador. As seções marcadas com **(a implementar)** descrevem o plano, não código existente.
 
 # A API
 
@@ -112,20 +112,106 @@ A API usa dois formatos diferentes:
 
 Nos dois casos cada mensagem tem `codigo`, `descricao` e `complemento`. Em todas as respostas, `tipoAmbiente` é 1 para produção e 2 para homologação.
 
-# Estrutura do módulo (a implementar)
+# Estrutura do módulo
 
 Caminho: `pynfe/processamento/nfse/nfse_nacional/`
 
-- `servicos.py`: ponto de entrada (classe `Servicos`).
+- `servicos.py` (a implementar): ponto de entrada (classe `Servicos`).
     - `enviar(nfse, homologacao=False)`
     - `consultar(chaveAcesso)`
     - `consultarDps(idDps)`
     - `cancelar(...)` e consulta de eventos
-- `serializacao.py`: gera o XML da DPS.
-- `validacao.py`: valida a DPS com o XSD antes do envio, como em São Paulo.
-- `comunicacao.py`: requisições JSON por HTTPS com o certificado A1. A compactação usa `../compactador.py`.
-- `resposta.py`: interpreta os dois formatos de erro, devolve os alertas e descompacta o XML da NFS-e.
-- `flags.py`: URLs dos ambientes, namespaces e versões.
+- `serializacao.py` (implementado): gera o XML da DPS. Veja "Serialização da DPS".
+- `validacao.py` (implementado): `Validacao(versao='1.01').validarDPS(dps)` valida a DPS com o XSD; os erros ficam em `erros`.
+- `comunicacao.py` (a implementar): requisições JSON por HTTPS com o certificado A1. A compactação usa `../compactador.py`.
+- `resposta.py` (a implementar): interpreta os dois formatos de erro, devolve os alertas e descompacta o XML da NFS-e.
+- `flags.py` (implementado): URLs dos ambientes, namespace, versões e códigos usados na DPS.
+
+## Serialização da DPS
+
+```python
+from pynfe.processamento.nfse.nfse_nacional import serializacao
+
+dps = serializacao.Serializacao().gerar(nfse, homologacao=False)  # etree._Element, sem assinatura
+```
+
+Gera a DPS no leiaute 1.01 a partir de um `NotaFiscalServico`. Por enquanto cobre o núcleo da DPS: identificação, prestador, tomador, serviço, valores, ISSQN, retenções federais e o grupo básico de IBS/CBS. Ainda não cobre substituição de NFS-e, intermediário, comércio exterior, obra, evento, deduções/reduções, benefício municipal, PIS/COFINS e o detalhamento de IBS/CBS.
+
+### Identificação
+
+| Campo | Origem |
+|---|---|
+| `infDPS/@Id` | `"DPS"` + `cLocEmi` (7) + tipo de inscrição (1 = CPF, 2 = CNPJ) + CNPJ/CPF do emitente (14, zeros à esquerda) + `serie` (5) + `nDPS` (15) |
+| `tpAmb` | parâmetro `homologacao` (1 produção, 2 homologação) |
+| `dhEmi` | `data_emissao`. Sem fuso (`tzinfo`), usa `-03:00` |
+| `verAplic` | `"PyNFe"` |
+| `serie` | `serie`. **Só números**, até 5 dígitos |
+| `nDPS` | `identificador`, sem zeros à esquerda |
+| `dCompet` | `data_competencia`; se não houver, a data de `data_emissao` |
+| `tpEmit` | `tipo_emitente` (padrão 1, prestador) |
+| `cLocEmi` | `emitente.endereco_cod_municipio` |
+
+### Prestador (`prest`)
+
+| Campo | Origem |
+|---|---|
+| `CNPJ` / `CPF` | `emitente.cnpj` (11 dígitos = CPF) |
+| `IM` | `emitente.inscricao_municipal`, se houver |
+| `xNome`, `end` | só quando `tipo_emitente` não é 1: com o prestador como emitente, vêm do cadastro nacional |
+| `fone` | `emitente.endereco_telefone`, só os números |
+| `email` | `emitente.email`, se houver |
+| `regTrib/opSimpNac` | `op_simples_nacional`; se não houver, `simples == 1` vira 3 (ME/EPP) e os demais 1 (não optante). MEI (2) só pelo atributo |
+| `regTrib/regApTribSN` | `regime_apuracao_sn`; padrão 1 quando `opSimpNac` é 3 |
+| `regTrib/regEspTrib` | `regime_especial` (padrão 0) |
+
+### Tomador (`toma`)
+
+Só é gerado quando `nfse.cliente` existe.
+
+| Campo | Origem |
+|---|---|
+| `CNPJ` / `CPF` | `cliente.numero_documento`, conforme `cliente.tipo_documento` |
+| `IM` | `cliente.inscricao_municipal`, se houver |
+| `xNome` | `cliente.razao_social` |
+| `end` | endereço nacional do cliente, se `endereco_logradouro` estiver preenchido. `nro` vazio vira `S/N` |
+| `fone`, `email` | `cliente.endereco_telefone`, `cliente.email` |
+
+### Serviço (`serv`)
+
+| Campo | Origem |
+|---|---|
+| `locPrest/cLocPrestacao` | `servico.codigo_municipio`; se vazio, o município do emitente |
+| `cServ/cTribNac` | `servico.codigo_tributacao_nacional` (**obrigatório**, 6 dígitos) |
+| `cServ/cTribMun` | `servico.codigo_tributacao_municipal_nacional` (3 dígitos), se houver. Não é o `codigo_tributacao_municipio` de São Paulo |
+| `cServ/xDescServ` | `servico.discriminacao` |
+| `cServ/cNBS` | `servico.nbs`, só os números |
+
+### Valores (`valores`)
+
+| Campo | Origem |
+|---|---|
+| `vServPrest/vServ` | `servico.valor_servico` |
+| `vDescCondIncond` | `servico.desconto_incondicionado` e `desconto_condicionado`, quando maiores que zero |
+| `trib/tribMun/tribISSQN` | `servico.tributacao_issqn` (padrão 1, operação tributável) |
+| `trib/tribMun/tpRetISSQN` | `servico.tipo_retencao_issqn`; se não houver, `iss_retido == 1` vira 2 (retido pelo tomador) e os demais 1 (não retido) |
+| `trib/tribMun/pAliq` | `servico.aliquota`, quando maior que zero |
+| `trib/tribFed` | `vRetCP` = `valor_inss`, `vRetIRRF` = `valor_ir`, `vRetCSLL` = `valor_csll`, quando maiores que zero |
+| `trib/totTrib` | `pTotTribSN` = `percentual_tributos_sn` se houver; senão `indTotTrib` = 0 |
+
+### IBS/CBS (`IBSCBS`)
+
+Só é gerado quando `IBSCBS_cIndOp` está preenchido. Usa os mesmos atributos do São Paulo: `IBSCBS_finNFSe`, `IBSCBS_indFinal`, `IBSCBS_cIndOp`, `IBSCBS_tpOper`, `IBSCBS_indDest` e `IBSCBS_cClassTrib`, mais `IBSCBS_CST` (3 dígitos), obrigatório no leiaute nacional.
+
+### Atributos novos
+
+Como em São Paulo, os campos que não existem nas entidades são atributos extras do `NotaFiscalServico` e do `Servico`, sem alterar `pynfe/entidades`:
+
+- `NotaFiscalServico`: `data_competencia`, `tipo_emitente`, `op_simples_nacional`, `regime_apuracao_sn`, `percentual_tributos_sn`, `IBSCBS_CST`.
+- `Servico`: `codigo_tributacao_nacional`, `codigo_tributacao_municipal_nacional`, `tributacao_issqn`, `tipo_retencao_issqn`.
+
+### Correção no XSD 1.01
+
+Em `tiposSimples_v1.01.xsd`, o padrão da série (`TSSerieDPS`) é `^0{0,4}\d{1,5}$`. Em XML Schema `^` e `$` não são âncoras, são caracteres literais, e o libxml2 recusa qualquer série. A cópia local foi corrigida para `0{0,4}\d{1,5}`, com um comentário no arquivo. **Ao atualizar os XSDs, refazer essa correção.**
 
 ## Fluxo de `enviar` (a implementar)
 
@@ -164,8 +250,8 @@ Como nosso código ainda não foi validado pelo mantenedor do PyNFe, as rotinas 
 
 # Pendências
 
-- Obter os XSDs da NFS-e Nacional (DPS, NFS-e e eventos) e guardá-los em `pynfe/data/XSDs/NFS-e/nfse_nacional/`.
-- Obter o manual da NFS-e Nacional: formação do Id da DPS e da chave de acesso, regras de negócio e significado dos tipos de evento.
+- Obter o manual da NFS-e Nacional para conferir as regras de negócio usadas na serialização (formação do Id, prestador sem nome e endereço quando é o emitente, `regApTribSN`, `totTrib` e `pAliq` para o Simples) e o significado dos tipos de evento.
+- Assinatura da DPS: a `Reference` deve apontar para o `Id` do `infDPS`. O `assinarNfse` atual assina sem `reference_uri`.
 - Confirmar a URL do ambiente de homologação.
 - Incluir os XSDs no `package_data` do `setup.py` (hoje só `data/**/*.txt` é incluído).
 
@@ -178,3 +264,4 @@ python -m tests.processamento.nfse.nfse_nacional.suite
 ```
 
 - `compactador.py`: testes do `Compactador`.
+- `serializacao.py`: testes da serialização da DPS, incluindo a validação com o XSD 1.01. A função `get_nfse()` monta uma NFS-e de exemplo.

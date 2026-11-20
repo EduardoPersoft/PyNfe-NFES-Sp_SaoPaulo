@@ -158,7 +158,10 @@
   <xs:simpleType name="TSSerieDPS">
     <xs:restriction base="xs:string">
       <xs:maxLength value="5"/>
-      <xs:pattern value="^0{0,4}\d{1,5}$"/>
+      <!-- PyNFe: o original é "^0{0,4}\d{1,5}$". Em XML Schema "^" e "$"
+           não são âncoras e sim caracteres literais, então o libxml2 recusa
+           qualquer série. Removidos para validar localmente. -->
+      <xs:pattern value="0{0,4}\d{1,5}"/>
       <xs:whiteSpace value="preserve"/>
     </xs:restriction>
   </xs:simpleType>
