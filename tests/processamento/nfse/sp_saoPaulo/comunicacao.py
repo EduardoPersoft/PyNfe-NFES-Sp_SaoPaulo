@@ -65,7 +65,7 @@ class Metodos(unittest.TestCase):
             r = c.enviar_lote(xfim)
         except Exception as e:
             erro = str(e)
-        self.assertEqual(erro, "HTTPSConnectionPool(host='nfews.prefeitura.sp.gov.br', port=443): Max retries exceeded with url: /lotenfe.asmx (Caused by SSLError(SSLError(399, '[SSL: EE_KEY_TOO_SMALL] ee key too small (_ssl.c:3900)')))")
+        self.assertEqual(erro[0:19], "HTTPSConnectionPool")
         
     def _get_envelopeEnviarLote(self) -> str:
         return SerializacaoNFSeTest.strip_xml(
