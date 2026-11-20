@@ -28,7 +28,7 @@ Fonte: `swagger.json` (Swagger 2.0, "API NFS-e - Sefin Nacional", versão v1).
 | Ambiente | URL base | Situação |
 |---|---|---|
 | Produção | `https://sefin.nfse.gov.br/SefinNacional` | Consta na especificação |
-| Homologação (produção restrita) | `https://sefin.producaorestrita.nfse.gov.br/SefinNacional` | **A confirmar**: não consta na especificação |
+| Homologação (produção restrita) | `https://sefin.producaorestrita.nfse.gov.br/SefinNacional` | Não consta na especificação; host confirmado pela URL `http://sefin.producaorestrita.nfse.gov.br/SefinNacional/DANFSe` |
 
 A especificação declara `schemes: ["http"]`, mas a comunicação real é HTTPS com certificado.
 
@@ -326,7 +326,6 @@ Como nosso código ainda não foi validado pelo mantenedor do PyNFe, as rotinas 
 - Confirmar se o município emissor (`cLocEmi`) tem convênio ativo no Sistema Nacional e permite os emissores públicos (E0037/E0038/E0039); sem isso a Sefin rejeita a DPS.
 - Confirmar, para cada empresa, se ela tem registro no CNC do município emissor, para decidir `prestador_informar_im` (E0116/E0120).
 - Significado dos tipos de evento.
-- Confirmar a URL do ambiente de homologação.
 - Incluir os XSDs no `package_data` do `setup.py` (hoje só `data/**/*.txt` é incluído).
 
 # Testes

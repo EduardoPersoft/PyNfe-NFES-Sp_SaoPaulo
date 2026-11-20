@@ -6,7 +6,8 @@ VERSAO_APLICATIVO = "PyNFe"
 FUSO_HORARIO_PADRAO = "-03:00"
 
 URL_PRODUCAO = "https://sefin.nfse.gov.br/SefinNacional"
-# A confirmar: não consta no swagger.json.
+# Produção restrita. Não consta no swagger.json; host confirmado pela
+# URL http://sefin.producaorestrita.nfse.gov.br/SefinNacional/DANFSe.
 URL_HOMOLOGACAO = "https://sefin.producaorestrita.nfse.gov.br/SefinNacional"
 
 TIPO_AMBIENTE_PRODUCAO = "1"
