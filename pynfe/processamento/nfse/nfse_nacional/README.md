@@ -9,7 +9,7 @@ Integração com a API da Sefin Nacional para emissão de NFS-e pelo Portal Naci
 
 ## Situação
 
-Em desenvolvimento. Já existem a serialização da DPS (leiaute 1.01), a validação com o XSD e o compactador. As seções marcadas com **(a implementar)** descrevem o plano, não código existente.
+Em desenvolvimento. Já existem a serialização da DPS (leiaute 1.01), a assinatura, a validação com o XSD e o compactador. As seções marcadas com **(a implementar)** descrevem o plano, não código existente.
 
 # A API
 
@@ -122,6 +122,7 @@ Caminho: `pynfe/processamento/nfse/nfse_nacional/`
     - `consultarDps(idDps)`
     - `cancelar(...)` e consulta de eventos
 - `serializacao.py` (implementado): gera o XML da DPS. Veja "Serialização da DPS".
+- `assinatura.py` (implementado): assina a DPS. Veja "Assinatura da DPS".
 - `validacao.py` (implementado): `Validacao(versao='1.01').validarDPS(dps)` valida a DPS com o XSD; os erros ficam em `erros`.
 - `comunicacao.py` (a implementar): requisições JSON por HTTPS com o certificado A1. A compactação usa `../compactador.py`.
 - `resposta.py` (a implementar): interpreta os dois formatos de erro, devolve os alertas e descompacta o XML da NFS-e.
@@ -209,6 +210,28 @@ Como em São Paulo, os campos que não existem nas entidades são atributos extr
 - `NotaFiscalServico`: `data_competencia`, `tipo_emitente`, `op_simples_nacional`, `regime_apuracao_sn`, `percentual_tributos_sn`, `IBSCBS_CST`.
 - `Servico`: `codigo_tributacao_nacional`, `codigo_tributacao_municipal_nacional`, `tributacao_issqn`, `tipo_retencao_issqn`.
 
+## Assinatura da DPS
+
+```python
+from pynfe.processamento.nfse.nfse_nacional import assinatura
+
+assinada = assinatura.Assinatura(certificado, senha).assinarDPS(dps)  # etree._Element
+```
+
+- XMLDSIG envelopada, com C14N inclusivo (`http://www.w3.org/TR/2001/REC-xml-c14n-20010315`).
+- A `Reference` aponta para o `Id` do `infDPS` (`#DPS...`), e a `Signature` fica depois do `infDPS`, no namespace do XMLDSIG como padrão (sem prefixo `ds:`).
+- RSA-SHA1 por padrão. `Assinatura(certificado, senha, algoritmo="sha256")` usa RSA-SHA256.
+- Não remove acentos, ao contrário do `AssinaturaA1.assinar` da NF-e.
+- Não altera a DPS recebida: devolve uma cópia assinada. Levanta `Exception` se a DPS não tiver `Id` ou já estiver assinada.
+
+### Defeito no C14N do libxml2
+
+A assinatura é montada no próprio `assinatura.py`, sem o signxml. O libxml2 2.14 (usado pelo lxml) calcula errado o C14N inclusivo de um trecho do documento: acrescenta `xmlns=""` em elementos que herdam o namespace padrão de um ancestral. Por exemplo, o C14N do `infDPS` sai com `<CNPJ xmlns="">`. O signxml depende desse C14N, então a assinatura gerada não confere com o C14N correto, que é o que a Sefin calcula. O verificador do signxml não percebe, porque usa o mesmo C14N com defeito.
+
+Para contornar, o C14N é calculado sobre uma cópia do elemento como raiz do documento, o que dá o resultado correto. Os testes conferem o digest e a assinatura com um C14N independente do libxml2 (`xml.etree.ElementTree`).
+
+O `AssinaturaA1.assinar` da NF-e não é afetado: ele relê o XML a partir do texto antes de assinar e usa `excise_empty_xmlns_declarations`, que remove os `xmlns=""` falsos do C14N. Conferido com o C14N independente (digest e assinatura). Com a DPS gerada em memória essa combinação não funcionou, por isso a assinatura própria.
+
 ### Correção no XSD 1.01
 
 Em `tiposSimples_v1.01.xsd`, o padrão da série (`TSSerieDPS`) é `^0{0,4}\d{1,5}$`. Em XML Schema `^` e `$` não são âncoras, são caracteres literais, e o libxml2 recusa qualquer série. A cópia local foi corrigida para `0{0,4}\d{1,5}`, com um comentário no arquivo. **Ao atualizar os XSDs, refazer essa correção.**
@@ -251,7 +274,7 @@ Como nosso código ainda não foi validado pelo mantenedor do PyNFe, as rotinas 
 # Pendências
 
 - Obter o manual da NFS-e Nacional para conferir as regras de negócio usadas na serialização (formação do Id, prestador sem nome e endereço quando é o emitente, `regApTribSN`, `totTrib` e `pAliq` para o Simples) e o significado dos tipos de evento.
-- Assinatura da DPS: a `Reference` deve apontar para o `Id` do `infDPS`. O `assinarNfse` atual assina sem `reference_uri`.
+- Confirmar no manual o algoritmo de assinatura aceito (RSA-SHA1 ou RSA-SHA256).
 - Confirmar a URL do ambiente de homologação.
 - Incluir os XSDs no `package_data` do `setup.py` (hoje só `data/**/*.txt` é incluído).
 
@@ -264,4 +287,5 @@ python -m tests.processamento.nfse.nfse_nacional.suite
 ```
 
 - `compactador.py`: testes do `Compactador`.
+- `assinatura.py`: testes da assinatura, com verificação independente do libxml2.
 - `serializacao.py`: testes da serialização da DPS, incluindo a validação com o XSD 1.01. A função `get_nfse()` monta uma NFS-e de exemplo.
