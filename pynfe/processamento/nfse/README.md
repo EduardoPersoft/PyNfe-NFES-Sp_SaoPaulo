@@ -27,6 +27,13 @@ Caminho: `pynfe/processamento/nfse/`
     - As subclasses de cada município definem `url` e `xml`.
 - `validacao.py`
     - Vazio no momento.
+- `compactador.py`
+    - Classe `Compactador`: compacta XML em GZip com base64 e faz o caminho inverso, como exige a API da NFS-e Nacional.
+    - Fica aqui, e não em `pynfe/utils/`, para manter nossas alterações isoladas no módulo até a validação pelo mantenedor, facilitando o merge.
+
+## Integração Nacional (`nfse_nacional/`)
+
+Em desenvolvimento. Será escolhida pelo parâmetro `nfse_nacional=True` do `autorizador.get`. Detalhes em `nfse_nacional/README.md`.
 
 ## Integração de São Paulo (`sp_saoPaulo/`)
 
