@@ -138,6 +138,8 @@ dps = serializacao.Serializacao().gerar(nfse, homologacao=False)  # etree._Eleme
 
 Gera a DPS no leiaute 1.01 a partir de um `NotaFiscalServico`. Por enquanto cobre o núcleo da DPS: identificação, prestador, tomador, serviço, valores, ISSQN, retenções federais e o grupo básico de IBS/CBS. Ainda não cobre substituição de NFS-e, intermediário, comércio exterior, obra, evento, deduções/reduções, benefício municipal, PIS/COFINS e o detalhamento de IBS/CBS.
 
+As regras de negócio vêm da planilha `nfse-v1-01-20260209.xlsx` (aba `RN DPS_NFS-e`). As que podem ser verificadas sem consultar os cadastros da Sefin levantam `ErroRegraNegocio`, com o código da regra no início da mensagem, antes de gerar o XML. Veja "Regras de negócio verificadas localmente".
+
 ### Identificação
 
 | Campo | Origem |
@@ -146,10 +148,10 @@ Gera a DPS no leiaute 1.01 a partir de um `NotaFiscalServico`. Por enquanto cobr
 | `tpAmb` | parâmetro `homologacao` (1 produção, 2 homologação) |
 | `dhEmi` | `data_emissao`. Sem fuso (`tzinfo`), usa `-03:00` |
 | `verAplic` | `"PyNFe"` |
-| `serie` | `serie`. **Só números**, até 5 dígitos |
+| `serie` | `serie`. **Só números**, de 1 a 49999 (faixa de aplicativo próprio, E0010) |
 | `nDPS` | `identificador`, sem zeros à esquerda |
-| `dCompet` | `data_competencia`; se não houver, a data de `data_emissao` |
-| `tpEmit` | `tipo_emitente` (padrão 1, prestador) |
+| `dCompet` | `data_competencia`; se não houver, a data de `data_emissao`. Não pode ser posterior à emissão (E0015) |
+| `tpEmit` | `tipo_emitente` (padrão 1, prestador). A Sefin só aceita 1 nesta versão (E9996) |
 | `cLocEmi` | `emitente.endereco_cod_municipio` |
 
 ### Prestador (`prest`)
@@ -157,13 +159,13 @@ Gera a DPS no leiaute 1.01 a partir de um `NotaFiscalServico`. Por enquanto cobr
 | Campo | Origem |
 |---|---|
 | `CNPJ` / `CPF` | `emitente.cnpj` (11 dígitos = CPF) |
-| `IM` | `emitente.inscricao_municipal`, se houver |
+| `IM` | `emitente.inscricao_municipal`, se houver e se `prestador_informar_im` não for `False`. A IM deve ir se, e somente se, a empresa tiver registro no CNC do município emissor (E0116/E0120) |
 | `xNome`, `end` | só quando `tipo_emitente` não é 1: com o prestador como emitente, vêm do cadastro nacional |
 | `fone` | `emitente.endereco_telefone`, só os números |
 | `email` | `emitente.email`, se houver |
 | `regTrib/opSimpNac` | `op_simples_nacional`; se não houver, `simples == 1` vira 3 (ME/EPP) e os demais 1 (não optante). MEI (2) só pelo atributo |
-| `regTrib/regApTribSN` | `regime_apuracao_sn`; padrão 1 quando `opSimpNac` é 3 |
-| `regTrib/regEspTrib` | `regime_especial` (padrão 0) |
+| `regTrib/regApTribSN` | só para ME/EPP (`opSimpNac` 3), obrigatório nesse caso (E0162/E0166). `regime_apuracao_sn`, padrão 1: tributos federais e ISSQN pelo SN; 2: federais pelo SN e ISSQN pela legislação municipal; 3: ambos fora do SN |
+| `regTrib/regEspTrib` | `regime_especial` (padrão 0). Deve ser 0 para MEI, para ME/EPP com `regApTribSN` 1 e para operação não tributável (E0172/E0174/E0175) |
 
 ### Tomador (`toma`)
 
@@ -194,23 +196,70 @@ Só é gerado quando `nfse.cliente` existe.
 | `vServPrest/vServ` | `servico.valor_servico` |
 | `vDescCondIncond` | `servico.desconto_incondicionado` e `desconto_condicionado`, quando maiores que zero |
 | `trib/tribMun/tribISSQN` | `servico.tributacao_issqn` (padrão 1, operação tributável) |
-| `trib/tribMun/tpRetISSQN` | `servico.tipo_retencao_issqn`; se não houver, `iss_retido == 1` vira 2 (retido pelo tomador) e os demais 1 (não retido) |
-| `trib/tribMun/pAliq` | `servico.aliquota`, quando maior que zero |
-| `trib/tribFed` | `vRetCP` = `valor_inss`, `vRetIRRF` = `valor_ir`, `vRetCSLL` = `valor_csll`, quando maiores que zero |
-| `trib/totTrib` | `pTotTribSN` = `percentual_tributos_sn` se houver; senão `indTotTrib` = 0 |
+| `trib/tribMun/tpRetISSQN` | `servico.tipo_retencao_issqn`; se não houver, `iss_retido == 1` vira 2 (retido pelo tomador) e os demais 1 (não retido). Sem retenção para MEI, regime especial ou operação não tributável (E0580/E0583/E0588) |
+| `trib/tribMun/pAliq` | `servico.aliquota`, só quando as regras exigem (veja abaixo). Máximo 5% (E0595) |
+| `trib/tribFed` | `vRetCP` = `valor_inss`, `vRetIRRF` = `valor_ir`, `vRetCSLL` = `valor_csll`, quando maiores que zero e menores que o valor do serviço. Não permitido para emitente CPF ou MEI (E0675/E0676) |
+| `trib/totTrib` | veja "Total aproximado dos tributos" abaixo |
 
 ### IBS/CBS (`IBSCBS`)
 
 Só é gerado quando `IBSCBS_cIndOp` está preenchido. Usa os mesmos atributos do São Paulo: `IBSCBS_finNFSe`, `IBSCBS_indFinal`, `IBSCBS_cIndOp`, `IBSCBS_tpOper`, `IBSCBS_indDest` e `IBSCBS_cClassTrib`, mais `IBSCBS_CST` (3 dígitos), obrigatório no leiaute nacional.
 
+### Alíquota do ISSQN (`pAliq`)
+
+Quando o município de incidência tem convênio ativo no Sistema Nacional, a alíquota vem da parametrização do município. A regra resultante (E0595 a E0640):
+
+| Situação | `pAliq` |
+|---|---|
+| MEI, regime especial ou operação não tributável | não informado |
+| ME/EPP com `regApTribSN` 1 e ISSQN retido | obrigatório |
+| ME/EPP com `regApTribSN` 1 e ISSQN não retido | não informado |
+| Demais casos, município de incidência conveniado | não informado |
+| Demais casos, município de incidência não conveniado | obrigatório |
+
+O atributo `municipio_incidencia_conveniado` (padrão `True`) indica se o convênio do município de incidência está ativo. Quando `pAliq` não deve ser informado, `servico.aliquota` é ignorado; quando é obrigatório e está vazio, a serialização falha.
+
+### Total aproximado dos tributos (`totTrib`)
+
+Regras E0710, E0712 e E0713:
+
+| Opção no Simples | Aceito |
+|---|---|
+| Não optante | `vTotTrib` ou `pTotTrib` |
+| MEI | `vTotTrib`, `pTotTrib` ou `indTotTrib` = 0 |
+| ME/EPP | `vTotTrib`, `pTotTrib` ou `pTotTribSN` |
+
+A serialização usa, nesta ordem: `valor_tributos_aproximados` (tupla federal, estadual, municipal) → `vTotTrib`; `percentual_tributos_aproximados` (tupla) → `pTotTrib`; `percentual_tributos_sn` (ME/EPP) → `pTotTribSN`; para MEI sem nada informado, `indTotTrib` = 0. Sem informação para ME/EPP ou não optante, a serialização falha.
+
+### Regras de negócio verificadas localmente
+
+Levantam `ErroRegraNegocio` antes de gerar o XML:
+
+| Código | Regra |
+|---|---|
+| E0010 | série fora da faixa 1 a 49999 |
+| E0015 | data de competência posterior à emissão |
+| E9996 | emitente diferente do prestador |
+| E0172, E0174, E0175 | regime especial de tributação não permitido |
+| E0204, E0235, E0237 | tomador ou endereço do tomador ausente quando obrigatório |
+| E0580, E0583, E0588 | retenção do ISSQN não permitida |
+| E0595, E0619 e correlatas | alíquota acima de 5% ou ausente quando obrigatória |
+| E0675, E0676, E0699 a E0701 | tributos federais não permitidos ou fora dos limites |
+| E0712, E0713 | total aproximado dos tributos ausente |
+| E0322 | NBS ausente com IBS/CBS informado |
+
+Regras que dependem dos cadastros da Sefin (CNPJ, Simples Nacional, CNC, convênio, parametrização do município) só são verificadas no envio.
+
 ### Atributos novos
 
 Como em São Paulo, os campos que não existem nas entidades são atributos extras do `NotaFiscalServico` e do `Servico`, sem alterar `pynfe/entidades`:
 
-- `NotaFiscalServico`: `data_competencia`, `tipo_emitente`, `op_simples_nacional`, `regime_apuracao_sn`, `percentual_tributos_sn`, `IBSCBS_CST`.
+- `NotaFiscalServico`: `data_competencia`, `tipo_emitente`, `op_simples_nacional`, `regime_apuracao_sn`, `prestador_informar_im`, `municipio_incidencia_conveniado`, `percentual_tributos_sn`, `valor_tributos_aproximados`, `percentual_tributos_aproximados`, `IBSCBS_CST`.
 - `Servico`: `codigo_tributacao_nacional`, `codigo_tributacao_municipal_nacional`, `tributacao_issqn`, `tipo_retencao_issqn`.
 
 ## Assinatura da DPS
+
+A Sefin rejeita prefixos de namespace na área de dados (regra E1228 da aba `RN_RECEPCAO_DPS`), por isso a `Signature` usa o namespace padrão, sem `ds:`.
 
 ```python
 from pynfe.processamento.nfse.nfse_nacional import assinatura
@@ -273,8 +322,10 @@ Como nosso código ainda não foi validado pelo mantenedor do PyNFe, as rotinas 
 
 # Pendências
 
-- Obter o manual da NFS-e Nacional para conferir as regras de negócio usadas na serialização (formação do Id, prestador sem nome e endereço quando é o emitente, `regApTribSN`, `totTrib` e `pAliq` para o Simples) e o significado dos tipos de evento.
-- Confirmar no manual o algoritmo de assinatura aceito (RSA-SHA1 ou RSA-SHA256).
+- Confirmar o algoritmo de assinatura aceito (RSA-SHA1 ou RSA-SHA256): a planilha de regras não trata disso.
+- Confirmar se o município emissor (`cLocEmi`) tem convênio ativo no Sistema Nacional e permite os emissores públicos (E0037/E0038/E0039); sem isso a Sefin rejeita a DPS.
+- Confirmar, para cada empresa, se ela tem registro no CNC do município emissor, para decidir `prestador_informar_im` (E0116/E0120).
+- Significado dos tipos de evento.
 - Confirmar a URL do ambiente de homologação.
 - Incluir os XSDs no `package_data` do `setup.py` (hoje só `data/**/*.txt` é incluído).
 

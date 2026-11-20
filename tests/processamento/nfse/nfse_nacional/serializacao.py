@@ -9,6 +9,7 @@ from pynfe.entidades.servico import Servico
 from pynfe.processamento.nfse.nfse_nacional import serializacao
 from pynfe.processamento.nfse.nfse_nacional import validacao
 from pynfe.processamento.nfse.nfse_nacional.flags import NAMESPACE_NFSE
+from pynfe.processamento.nfse.nfse_nacional.serializacao import ErroRegraNegocio
 
 NS = {'n': NAMESPACE_NFSE}
 
@@ -59,6 +60,7 @@ def get_nfse(**kwargs) -> NotaFiscalServico:
         emitente=emitente,
         cliente=cliente,
         simples=1,
+        percentual_tributos_sn=Decimal("6.00"),
     )
     dados.update(kwargs)
     return NotaFiscalServico(**dados)
@@ -125,7 +127,8 @@ class Serializacao(unittest.TestCase):
         self.assertIsNone(dps.find('n:infDPS/n:prest/n:end', NS))
 
     def test_prestador_nao_optante(self):
-        dps = self.serializacao.gerar(get_nfse(simples=2))
+        dps = self.serializacao.gerar(get_nfse(
+            simples=2, valor_tributos_aproximados=(Decimal("100"), 0, Decimal("25.19"))))
         self.assertEqual(self._texto(dps, 'n:infDPS/n:prest/n:regTrib/n:opSimpNac'), '1')
         self.assertIsNone(dps.find('n:infDPS/n:prest/n:regTrib/n:regApTribSN', NS))
         self._validar(dps)
@@ -161,6 +164,154 @@ class Serializacao(unittest.TestCase):
         dps = self.serializacao.gerar(nfse)
         self.assertEqual(self._texto(dps, 'n:infDPS/n:IBSCBS/n:valores/n:trib/n:gIBSCBS/n:cClassTrib'), '000001')
         self._validar(dps)
+
+
+class RegrasNegocio(unittest.TestCase):
+    """Regras da planilha nfse-v1-01-20260209.xlsx (aba RN DPS_NFS-e)."""
+
+    def setUp(self) -> None:
+        self.serializacao = serializacao.Serializacao()
+        self.validacao = validacao.Validacao()
+
+    def _gerar(self, nfse):
+        dps = self.serializacao.gerar(nfse)
+        r = self.validacao.validarDPS(dps)
+        for erro in self.validacao.erros:
+            print(f"- Linha {erro.line}: {erro.message}")
+        self.assertTrue(r)
+        return dps
+
+    def _erro(self, codigo, nfse):
+        with self.assertRaises(ErroRegraNegocio) as cm:
+            self.serializacao.gerar(nfse)
+        self.assertTrue(str(cm.exception).startswith(codigo), str(cm.exception))
+
+    def _tribMun(self, dps, campo):
+        return dps.findtext('n:infDPS/n:valores/n:trib/n:tribMun/n:' + campo, namespaces=NS)
+
+    def _totTrib(self, dps):
+        return [c.tag.split('}')[1] for c in
+                dps.find('n:infDPS/n:valores/n:trib/n:totTrib', NS)]
+
+    # totTrib (E0710, E0712, E0713)
+    def test_totTrib_me_epp(self):
+        self.assertEqual(self._totTrib(self._gerar(get_nfse())), ['pTotTribSN'])
+
+    def test_totTrib_me_epp_sem_informacao(self):
+        self._erro("E0712", get_nfse(percentual_tributos_sn=None))
+
+    def test_totTrib_nao_optante(self):
+        dps = self._gerar(get_nfse(simples=2, percentual_tributos_aproximados=(
+            Decimal("13.45"), 0, Decimal("2"))))
+        self.assertEqual(self._totTrib(dps), ['pTotTrib'])
+
+    def test_totTrib_nao_optante_sem_informacao(self):
+        self._erro("E0713", get_nfse(simples=2))
+
+    def test_totTrib_mei(self):
+        dps = self._gerar(get_nfse(op_simples_nacional=2, percentual_tributos_sn=None))
+        self.assertEqual(self._totTrib(dps), ['indTotTrib'])
+
+    # pAliq (E0595 a E0640)
+    def test_aliquota_me_epp_sem_retencao(self):
+        self.assertIsNone(self._tribMun(self._gerar(get_nfse()), 'pAliq'))
+
+    def test_aliquota_me_epp_com_retencao(self):
+        nfse = get_nfse()
+        nfse.servico.iss_retido = 1
+        self.assertEqual(self._tribMun(self._gerar(nfse), 'pAliq'), '2.00')
+
+    def test_aliquota_obrigatoria(self):
+        nfse = get_nfse()
+        nfse.servico.iss_retido = 1
+        nfse.servico.aliquota = Decimal("0")
+        self._erro("E0619", nfse)
+
+    def test_aliquota_maior_que_5(self):
+        nfse = get_nfse()
+        nfse.servico.iss_retido = 1
+        nfse.servico.aliquota = Decimal("5.01")
+        self._erro("E0595", nfse)
+
+    def test_aliquota_nao_optante_conveniado(self):
+        dps = self._gerar(get_nfse(simples=2, valor_tributos_aproximados=(1, 0, 1)))
+        self.assertIsNone(self._tribMun(dps, 'pAliq'))
+
+    def test_aliquota_nao_optante_nao_conveniado(self):
+        dps = self._gerar(get_nfse(simples=2, valor_tributos_aproximados=(1, 0, 1),
+                                   municipio_incidencia_conveniado=False))
+        self.assertEqual(self._tribMun(dps, 'pAliq'), '2.00')
+
+    def test_aliquota_mei(self):
+        nfse = get_nfse(op_simples_nacional=2, percentual_tributos_sn=None,
+                        municipio_incidencia_conveniado=False)
+        self.assertIsNone(self._tribMun(self._gerar(nfse), 'pAliq'))
+
+    # Identificação
+    def test_serie(self):
+        for serie in ("A1", "0", "50000"):
+            self._erro("E0010", get_nfse(serie=serie))
+        self._gerar(get_nfse(serie="49999"))
+
+    def test_competencia_posterior(self):
+        self._erro("E0015", get_nfse(data_competencia=datetime.date(2026, 11, 21)))
+
+    def test_emitente_tomador(self):
+        self._erro("E9996", get_nfse(tipo_emitente=2))
+
+    # Prestador
+    def test_im_nao_informada(self):
+        dps = self._gerar(get_nfse(prestador_informar_im=False))
+        self.assertIsNone(dps.find('n:infDPS/n:prest/n:IM', NS))
+
+    def test_regime_especial_com_sn(self):
+        self._erro("E0175", get_nfse(regime_especial=3))
+
+    def test_regime_especial_mei(self):
+        self._erro("E0174", get_nfse(op_simples_nacional=2, regime_especial=3))
+
+    # Tomador
+    def test_tomador_cnpj_sem_endereco(self):
+        nfse = get_nfse()
+        nfse.cliente.tipo_documento = "CNPJ"
+        nfse.cliente.numero_documento = "11444777000161"
+        nfse.cliente.endereco_logradouro = ""
+        self._erro("E0235", nfse)
+
+    def test_retencao_sem_endereco_tomador(self):
+        nfse = get_nfse()
+        nfse.servico.iss_retido = 1
+        nfse.cliente.endereco_logradouro = ""
+        self._erro("E0237", nfse)
+
+    def test_retencao_sem_tomador(self):
+        nfse = get_nfse(cliente=None)
+        nfse.servico.iss_retido = 1
+        self._erro("E0204", nfse)
+
+    def test_retencao_mei(self):
+        nfse = get_nfse(op_simples_nacional=2, percentual_tributos_sn=None)
+        nfse.servico.iss_retido = 1
+        self._erro("E0583", nfse)
+
+    # Tributos federais
+    def test_tribfed_emitente_cpf(self):
+        nfse = get_nfse()
+        nfse.emitente.cnpj = "12345678909"
+        nfse.servico.valor_ir = Decimal("10")
+        self._erro("E0675", nfse)
+
+    def test_tribfed_mei(self):
+        nfse = get_nfse(op_simples_nacional=2, percentual_tributos_sn=None)
+        nfse.servico.valor_ir = Decimal("10")
+        self._erro("E0676", nfse)
+
+    # IBS/CBS
+    def test_ibscbs_sem_nbs(self):
+        nfse = get_nfse(IBSCBS_cIndOp="100301", IBSCBS_CST="000",
+                        IBSCBS_cClassTrib="000001")
+        nfse.servico.nbs = ""
+        self._erro("E0322", nfse)
 
 
 if __name__ == '__main__':
