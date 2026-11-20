@@ -9,7 +9,7 @@ Integração com a API da Sefin Nacional para emissão de NFS-e pelo Portal Naci
 
 ## Situação
 
-Em desenvolvimento. Já existem a serialização da DPS (leiaute 1.01), a assinatura, a validação com o XSD e o compactador. As seções marcadas com **(a implementar)** descrevem o plano, não código existente.
+Em desenvolvimento. Já existem a serialização da DPS (leiaute 1.01), a assinatura, a validação com o XSD, o compactador e a comunicação com a Sefin (envio da DPS e consultas). Falta testar em homologação com um certificado real e implementar os eventos (cancelamento). As seções marcadas com **(a implementar)** descrevem o plano, não código existente.
 
 # A API
 
@@ -116,16 +116,17 @@ Nos dois casos cada mensagem tem `codigo`, `descricao` e `complemento`. Em todas
 
 Caminho: `pynfe/processamento/nfse/nfse_nacional/`
 
-- `servicos.py` (a implementar): ponto de entrada (classe `Servicos`).
+- `servicos.py` (implementado): ponto de entrada (classe `Servicos`). Veja "Uso".
     - `enviar(nfse, homologacao=False)`
-    - `consultar(chaveAcesso)`
-    - `consultarDps(idDps)`
-    - `cancelar(...)` e consulta de eventos
+    - `gerarDPS(nfse, homologacao=False)`: gera, assina e valida sem enviar
+    - `consultar(chaveAcesso, homologacao=False)`
+    - `consultarDps(idDps, homologacao=False)`
+    - `cancelar(...)` e consulta de eventos (a implementar)
 - `serializacao.py` (implementado): gera o XML da DPS. Veja "Serialização da DPS".
 - `assinatura.py` (implementado): assina a DPS. Veja "Assinatura da DPS".
 - `validacao.py` (implementado): `Validacao(versao='1.01').validarDPS(dps)` valida a DPS com o XSD; os erros ficam em `erros`.
-- `comunicacao.py` (a implementar): requisições JSON por HTTPS com o certificado A1. A compactação usa `../compactador.py`.
-- `resposta.py` (a implementar): interpreta os dois formatos de erro, devolve os alertas e descompacta o XML da NFS-e.
+- `comunicacao.py` (implementado): requisições JSON por HTTPS com o certificado A1, um método por endpoint (`enviarDPS`, `consultarNFSe`, `consultarDPS`, `existeDPS`, `registrarEvento`, `consultarEvento`). Devolve o `requests.Response` sem interpretar.
+- `resposta.py` (implementado): interpreta as respostas, descompacta os XMLs e levanta `ErroSefin` nos dois formatos de erro da API.
 - `flags.py` (implementado): URLs dos ambientes, namespace, versões e códigos usados na DPS.
 
 ## Serialização da DPS
@@ -285,24 +286,56 @@ O `AssinaturaA1.assinar` da NF-e não é afetado: ele relê o XML a partir do te
 
 Em `tiposSimples_v1.01.xsd`, o padrão da série (`TSSerieDPS`) é `^0{0,4}\d{1,5}$`. Em XML Schema `^` e `$` não são âncoras, são caracteres literais, e o libxml2 recusa qualquer série. A cópia local foi corrigida para `0{0,4}\d{1,5}`, com um comentário no arquivo. **Ao atualizar os XSDs, refazer essa correção.**
 
-## Fluxo de `enviar` (a implementar)
+## Uso
 
-1. Serializa a DPS em XML.
+```python
+from pynfe.processamento.nfse import autorizador
+from pynfe.processamento.nfse.nfse_nacional.resposta import ErroSefin
+from pynfe.processamento.nfse.nfse_nacional.serializacao import ErroRegraNegocio
+from pynfe.processamento.nfse.nfse_nacional.servicos import ErroComunicacao
+
+servicos = autorizador.get(cidade, certificado, senha, nfse_nacional=True)
+try:
+    r = servicos.enviar(nfse, homologacao=True)
+except ErroRegraNegocio as e:   # dados violam uma regra verificada localmente; nada foi enviado
+    ...
+except ErroSefin as e:          # a Sefin recusou: e.status, e.codigos, e.erros, e.idDps
+    ...
+except ErroComunicacao as e:    # falha de rede e não há NFS-e gerada: pode reenviar a mesma nota
+    ...
+
+r["chaveAcesso"]   # chave de acesso da NFS-e (50 dígitos)
+r["idDps"]         # Id da DPS
+r["nfseXml"]       # XML da NFS-e gerada pela Sefin (str)
+r["alertas"]       # lista de {codigo, descricao, complemento}
+```
+
+`Servicos(certificado, senha, timeout=60, verificar_ssl=True)`: `timeout` em segundos para cada requisição; `verificar_ssl` é repassado ao `verify` do requests (pode ser o caminho de um arquivo de cadeia de certificados, se o servidor da Sefin usar uma cadeia que o certifi não reconhece).
+
+O mesmo `homologacao` define o `tpAmb` da DPS e a URL, que precisam coincidir (regra E0006).
+
+## Fluxo de `enviar`
+
+1. Serializa a DPS em XML. Regras de negócio violadas levantam `ErroRegraNegocio`.
 2. Assina o XML com o certificado A1 (XMLDSIG).
 3. Valida o XML com o XSD. Se for inválido, levanta `Exception` com a lista de erros e não envia.
 4. Compacta em GZip, codifica em base64 e envia em `POST /nfse`.
-5. Interpreta a resposta: em caso de sucesso devolve a chave de acesso, o Id da DPS, o XML da NFS-e e os alertas; em caso de erro levanta `Exception` com os códigos e descrições.
+5. Interpreta a resposta: no sucesso (201) devolve o dicionário acima; em qualquer outro caso levanta `ErroSefin`.
 
-### Reenvio sem duplicar a NFS-e
+O certificado é gravado em arquivos temporários a cada requisição, como na comunicação de São Paulo, e excluído logo depois.
 
-Se o `POST /nfse` falhar por timeout ou queda de conexão, não há como saber se a NFS-e foi gerada. Antes de reenviar, consultar `GET /dps/{id}`:
+### Falha de rede no envio
 
-- 200: a NFS-e já existe; usar a chave de acesso devolvida.
-- 404: a NFS-e não foi gerada; é seguro reenviar.
+Se o `POST /nfse` falhar por timeout ou queda de conexão, não há como saber se a NFS-e foi gerada. O `enviar` consulta então `GET /dps/{id}`:
 
-## Seleção do serviço (a implementar)
+- 200: a NFS-e foi gerada. Busca a NFS-e pela chave e devolve o resultado normalmente, com `recuperada = True`.
+- 404, ou nova falha de rede: levanta `ErroComunicacao`.
 
-O `autorizador.get` passa a receber o parâmetro `nfse_nacional` (padrão `False`):
+Depois de um `ErroComunicacao` é seguro reenviar a mesma nota (mesma série e número): a Sefin recusa uma DPS com série, número, município e CNPJ/CPF já usados em uma NFS-e (regra E0014), então o reenvio não gera nota em duplicidade. Uma nota com outro número, por outro lado, geraria outra NFS-e.
+
+## Seleção do serviço
+
+`autorizador.get` recebe o parâmetro `nfse_nacional` (padrão `False`):
 
 ```python
 servicos = autorizador.get(cidade, certificado, senha, nfse_nacional=True)
@@ -338,4 +371,5 @@ python -m tests.processamento.nfse.nfse_nacional.suite
 
 - `compactador.py`: testes do `Compactador`.
 - `assinatura.py`: testes da assinatura, com verificação independente do libxml2.
+- `servicos.py`: testes da comunicação com o `requests` simulado (envio, rejeição, resposta não JSON, recuperação após falha de rede, consultas e autorizador). Não acessam a Sefin.
 - `serializacao.py`: testes da serialização da DPS, incluindo a validação com o XSD 1.01. A função `get_nfse()` monta uma NFS-e de exemplo.

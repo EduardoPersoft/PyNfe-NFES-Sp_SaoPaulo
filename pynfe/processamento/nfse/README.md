@@ -18,7 +18,7 @@ Caminho: `pynfe/processamento/nfse/`
 ## Arquivos comuns
 
 - `autorizador.py`
-    - `get(cidade, certificado, senha)`: recebe o **código IBGE** do município, o caminho do certificado A1 e a senha, e devolve o objeto de serviços da integração correspondente.
+    - `get(cidade, certificado, senha, nfse_nacional=False)`: recebe o **código IBGE** do município, o caminho do certificado A1 e a senha, e devolve o objeto de serviços da integração correspondente. Com `nfse_nacional=True` devolve a integração da NFS-e Nacional, qualquer que seja o município.
     - Municípios implementados: São Paulo (`3550308`). Para os demais, gera `Exception("Cidade não implementada!")`.
 - `envelope.py`
     - `Envelope.envelopar(dados)`: cria um envelope SOAP 1.1 (`http://schemas.xmlsoap.org/soap/envelope/`) com os dados no `Body`.
@@ -33,7 +33,7 @@ Caminho: `pynfe/processamento/nfse/`
 
 ## Integração Nacional (`nfse_nacional/`)
 
-Em desenvolvimento. Será escolhida pelo parâmetro `nfse_nacional=True` do `autorizador.get`. Detalhes em `nfse_nacional/README.md`.
+Em desenvolvimento: emissão e consultas implementadas, ainda não testadas em homologação. É escolhida pelo parâmetro `nfse_nacional=True` do `autorizador.get`. Detalhes em `nfse_nacional/README.md`.
 
 ## Integração de São Paulo (`sp_saoPaulo/`)
 
