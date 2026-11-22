@@ -22,8 +22,7 @@ class Validacao(object):
 
     def _validar(self, xsd, value):
         xmlschema = etree.XMLSchema(etree.parse(xsd))
-        # Valida o XML como será enviado (serializado e lido de novo). O
-        # signxml cria a Signature sem namespace na árvore em memória.
+        # Valida o XML como será enviado (serializado e lido de novo).
         r = xmlschema.validate(etree.fromstring(etree.tostring(value)))
         self._erros = xmlschema.error_log
         return r

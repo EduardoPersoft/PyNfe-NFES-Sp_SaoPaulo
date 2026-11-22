@@ -144,7 +144,7 @@ Caminho: `pynfe/processamento/nfse/nfse_nacional/`
 - `validacao.py` (implementado): `Validacao(versao='1.01').validarDPS(dps)` e `validarPedidoEvento(pedido)` validam com o XSD; os erros ficam em `erros`.
 - `comunicacao.py` (implementado): requisições JSON por HTTPS com o certificado A1, um método por endpoint (`enviarDPS`, `consultarNFSe`, `consultarDPS`, `existeDPS`, `registrarEvento`, `consultarEvento`). Devolve o `requests.Response` sem interpretar.
 - `resposta.py` (implementado): interpreta as respostas, descompacta os XMLs e levanta `ErroSefin` nos dois formatos de erro da API.
-- `flags.py` (implementado): URLs dos ambientes, namespace, versões e códigos usados na DPS.
+- `flags.py` (implementado): URLs dos ambientes, namespace, versões e códigos usados na DPS e nos eventos.
 
 ## Serialização da DPS
 
@@ -329,6 +329,14 @@ r["alertas"]       # lista de {codigo, descricao, complemento}
 
 `Servicos(certificado, senha, timeout=60, verificar_ssl=True)`: `timeout` em segundos para cada requisição; `verificar_ssl` é repassado ao `verify` do requests (pode ser o caminho de um arquivo de cadeia de certificados, se o servidor da Sefin usar uma cadeia que o certifi não reconhece).
 
+O `autorizador.get` repassa só o `timeout` (`autorizador.get(cidade, certificado, senha, nfse_nacional=True, timeout=30)`). Para usar `verificar_ssl`, crie `Servicos` diretamente:
+
+```python
+from pynfe.processamento.nfse.nfse_nacional.servicos import Servicos
+
+servicos = Servicos(certificado, senha, timeout=30, verificar_ssl="cadeia.pem")
+```
+
 O mesmo `homologacao` define o `tpAmb` da DPS e a URL, que precisam coincidir (regra E0006).
 
 ## Fluxo de `enviar`
@@ -379,9 +387,10 @@ A planilha de regras de negócio não tem aba de eventos; as regras do cancelame
 `autorizador.get` recebe o parâmetro `nfse_nacional` (padrão `False`):
 
 ```python
-servicos = autorizador.get(cidade, certificado, senha, nfse_nacional=True)
+servicos = autorizador.get(cidade, certificado, senha, nfse_nacional=True, timeout=60)
 ```
 
+- `timeout`: segundos por requisição; só vale para a NFS-e Nacional (padrão 60).
 - `nfse_nacional=True`: usa a integração do Portal Nacional (`nfse_nacional/`), qualquer que seja o município.
 - `nfse_nacional=False`: mantém o comportamento atual, escolhendo a integração pelo código IBGE do município.
 
@@ -410,6 +419,7 @@ python -m tests.processamento.nfse.nfse_nacional.suite
 ```
 
 - `compactador.py`: testes do `Compactador`.
+- `serializacao.py`: testes da serialização da DPS, incluindo a validação com o XSD 1.01. A função `get_nfse()` monta uma NFS-e de exemplo.
 - `assinatura.py`: testes da assinatura, com verificação independente do libxml2.
 - `eventos.py`: testes do pedido de cancelamento (serialização, assinatura com verificação independente do libxml2 e envio com o `requests` simulado).
 - `servicos.py`: testes da comunicação com o `requests` simulado (envio, rejeição, resposta não JSON, recuperação após falha de rede, consultas e autorizador). Não acessam a Sefin.
@@ -439,4 +449,3 @@ python -m tests.processamento.nfse.nfse_nacional.suite
 A senha do certificado vem da variável de ambiente `NFSE_SENHA` ou é pedida no terminal, e não é gravada. Os XMLs da DPS e da NFS-e ficam em `homologacao_saida/`. Outras opções: `--serie`, `--config`, `--saida`, `--timeout` e `--cadeia arquivo.pem` (cadeia de certificados do servidor, se houver erro de SSL).
 
 A data de emissão é a hora local menos um minuto, porque a Sefin rejeita emissão posterior ao processamento (E0008).
-- `serializacao.py`: testes da serialização da DPS, incluindo a validação com o XSD 1.01. A função `get_nfse()` monta uma NFS-e de exemplo.

@@ -39,6 +39,7 @@ setuptools.setup(
         "nfse": [
             "suds-community",
             "PyXB-X==1.2.6.3",
+            "xmltodict",
         ],
         "impressao": ["brazilfiscalreport[damdfe]"],
     },

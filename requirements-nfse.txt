@@ -1,3 +1,4 @@
 # Opcional para NFS-e
 suds-community
 PyXB-X==1.2.6.3
+xmltodict

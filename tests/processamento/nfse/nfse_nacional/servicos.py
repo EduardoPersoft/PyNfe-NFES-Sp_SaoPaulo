@@ -209,6 +209,12 @@ class Autorizador(unittest.TestCase):
     def test_nfse_nacional(self):
         s = autorizador.get('3550308', "./tests/certificado.pfx", b"123456", nfse_nacional=True)
         self.assertIsInstance(s, servicos.Servicos)
+        self.assertEqual(s._timeout, 60)
+
+    def test_nfse_nacional_timeout(self):
+        s = autorizador.get('3550308', "./tests/certificado.pfx", b"123456",
+                            nfse_nacional=True, timeout=15)
+        self.assertEqual(s._timeout, 15)
 
     def test_sao_paulo(self):
         from pynfe.processamento.nfse.sp_saoPaulo import servicos as sp
