@@ -104,6 +104,22 @@ class Envio(Base):
         self.assertEqual(e.idDps, "DPS" + "1" * 42)
         self.assertIn("E0712", str(e))
 
+    def test_rejeicao_chaves_maiusculas(self):
+        corpo = cabecalho(idDPS="DPS" + "1" * 42, erros=[
+            {"Codigo": "E0014", "Descricao": "DPS já utilizada", "Complemento": "x"}])
+        with mock.patch(REQUEST, return_value=resposta(400, corpo)):
+            with self.assertRaises(ErroSefin) as cm:
+                self.servicos.enviar(get_nfse(), homologacao=True)
+        self.assertEqual(cm.exception.codigos, ["E0014"])
+        self.assertIn("E0014 DPS já utilizada (x)", str(cm.exception))
+
+    def test_rejeicao_formato_desconhecido(self):
+        corpo = cabecalho(erros=[{"mensagem": "algo inesperado"}])
+        with mock.patch(REQUEST, return_value=resposta(400, corpo)):
+            with self.assertRaises(ErroSefin) as cm:
+                self.servicos.enviar(get_nfse(), homologacao=True)
+        self.assertIn("algo inesperado", str(cm.exception))
+
     def test_certificado_recusado(self):
         corpo = cabecalho(erros=[{"codigo": "E1200", "descricao": "Certificado de Transmissão Inválido"}])
         with mock.patch(REQUEST, return_value=resposta(403, corpo)):

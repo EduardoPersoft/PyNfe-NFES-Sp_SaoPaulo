@@ -7,7 +7,7 @@ class ErroSefin(Exception):
     - status: código HTTP;
     - erros: lista de dicionários com codigo, descricao e complemento;
     - idDps: Id da DPS, quando a Sefin conseguiu lê-lo;
-    - texto: corpo da resposta, quando não é JSON.
+    - texto: corpo da resposta, como veio da Sefin.
     """
 
     def __init__(self, status, erros=None, idDps=None, texto=None):
@@ -15,7 +15,7 @@ class ErroSefin(Exception):
         self.erros = erros or []
         self.idDps = idDps
         self.texto = texto
-        if self.erros:
+        if any(e.get("codigo") or e.get("descricao") for e in self.erros):
             detalhe = "\n".join(
                 "%s %s%s" % (e.get("codigo") or "", e.get("descricao") or "",
                              " (%s)" % e["complemento"] if e.get("complemento") else "")
@@ -75,13 +75,22 @@ class Resposta(object):
 
     @staticmethod
     def _mensagens(lista):
+        """Normaliza as mensagens de erro ou alerta. As chaves são lidas sem
+        diferenciar maiúsculas: o swagger.json usa "codigo", mas a Sefin
+        também responde "Codigo"."""
         if not lista:
             return []
         if isinstance(lista, dict):
             lista = [lista]
-        return [{"codigo": m.get("codigo"),
-                 "descricao": m.get("descricao"),
-                 "complemento": m.get("complemento")} for m in lista]
+        mensagens = []
+        for m in lista:
+            if not isinstance(m, dict):
+                m = {"descricao": str(m)}
+            m = {str(k).lower(): v for k, v in m.items()}
+            mensagens.append({"codigo": m.get("codigo"),
+                              "descricao": m.get("descricao"),
+                              "complemento": m.get("complemento")})
+        return mensagens
 
     def _json(self, response, sucesso):
         try:
@@ -95,4 +104,4 @@ class Resposta(object):
         erros = self._mensagens(dados.get("erros") or dados.get("erro"))
         raise ErroSefin(response.status_code, erros=erros,
                         idDps=dados.get("idDPS") or dados.get("idDps"),
-                        texto=None if erros else response.text)
+                        texto=response.text)

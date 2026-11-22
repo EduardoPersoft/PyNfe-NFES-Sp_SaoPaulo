@@ -124,7 +124,7 @@ A API usa dois formatos diferentes:
 | `POST /nfse` | `NFSePostResponseErro` | `erros` (lista) e `idDPS` |
 | Demais | `ResponseErro` | `erro` (um objeto) |
 
-Nos dois casos cada mensagem tem `codigo`, `descricao` e `complemento`. Em todas as respostas, `tipoAmbiente` é 1 para produção e 2 para homologação.
+Nos dois casos cada mensagem tem `codigo`, `descricao` e `complemento`. As chaves são lidas sem diferenciar maiúsculas, porque a Sefin pode responder `Codigo`, `Descricao` e `Complemento`. Se nenhuma mensagem tiver código ou descrição reconhecíveis, o `ErroSefin` mostra o corpo da resposta (sempre disponível em `e.texto`). Em todas as respostas, `tipoAmbiente` é 1 para produção e 2 para homologação.
 
 # Estrutura do módulo
 
